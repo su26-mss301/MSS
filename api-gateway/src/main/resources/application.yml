@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/api/v1/users/**
+            - id: wardrobe-service
+              uri: lb://wardrobe-service
+              predicates:
+                - Path=/api/v1/wardrobe/**
+            - id: recommendation-service
+              uri: lb://recommendation-service
+              predicates:
+                - Path=/api/v1/recommendation/**
+            - id: ai-detection-service
+              uri: lb://ai-detection-service
+              predicates:
+                - Path=/api/v1/ai/**
+            - id: storage-service
+              uri: lb://storage-service
+              predicates:
+                - Path=/api/v1/storage/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka

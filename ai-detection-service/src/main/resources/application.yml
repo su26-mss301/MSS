@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: ai-detection-service
+
+server:
+  port: 8084
+  servlet:
+    context-path: /api/v1
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka

@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: wardrobe-service
+
+
+server:
+  port: 8082
+  servlet:
+    context-path: /api/v1
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
