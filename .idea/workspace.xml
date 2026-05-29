@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a635b67a-3773-47d9-a690-93d42c8cb5b5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/UserController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeController.java" afterDir="false" />
-    </list>
+    <list default="true" id="a635b67a-3773-47d9-a690-93d42c8cb5b5" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -160,7 +157,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1780062205082</updated>
-      <workItem from="1780062206461" duration="4255000" />
+      <workItem from="1780062206461" duration="4680000" />
     </task>
     <servers />
   </component>
