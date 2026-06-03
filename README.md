@@ -90,6 +90,22 @@ Responsible for:
 - Wardrobe Organization
 - Clothing Metadata
 
+#### Latest Updates
+
+**Summary**
+
+- Add `Wardrobe`, `WardrobeZone`, `Category` and `ClothingItem` entities mapping to the database schema
+- Add `.env` file support to manage environment variables securely
+- Update `application.yml` to use `spring.config.import` and map local PostgreSQL credentials (`WARDROBE_DB_URL`, etc.)
+
+**New Flow**
+
+| Step | Actor | Action | Result |
+| :--- | :--- | :--- | :--- |
+| 1 | Developer | Configure `.env` with local PostgreSQL database credentials | Connects securely to the local `wardrobe-service` database |
+| 2 | System | Boot up `wardrobe-service` | `application.yml` initializes |
+| 3 | System | Load `spring.config.import: optional:file:.env` | Variables are dynamically injected into datasource and server config |
+
 ### Recommendation Service
 
 Responsible for:

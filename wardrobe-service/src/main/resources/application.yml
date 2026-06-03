@@ -1,14 +1,27 @@
 spring:
+  config:
+    import: optional:file:.env[.local]
   application:
     name: wardrobe-service
-
+  datasource:
+    url: ${WARDROBE_DB_URL}
+    username: ${WARDROBE_DB_USERNAME}
+    password: ${WARDROBE_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
 
 server:
-  port: 8082
+  port: ${SERVER_PORT:8082}
   servlet:
     context-path: /api/v1
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
