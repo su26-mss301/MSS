@@ -21,7 +21,7 @@ public class Category {
     @Column(name = "category_id", updatable = false, nullable = false)
     private UUID categoryId;
 
-    @Column(name = "category_name", nullable = false)
+    @Column(name = "category_name", nullable = false, length = 100)
     private String categoryName;
 
     @Column(name = "description", columnDefinition = "TEXT")

@@ -34,13 +34,13 @@ public class ClothingItem {
     @Column(name = "image_id")
     private UUID imageId;
 
-    @Column(name = "item_name", nullable = false)
+    @Column(name = "item_name", nullable = false, length = 100)
     private String itemName;
 
-    @Column(name = "dominant_color")
+    @Column(name = "dominant_color", length = 50)
     private String dominantColor;
 
-    @Column(name = "style")
+    @Column(name = "style", length = 50)
     private String style;
 
     @Column(name = "confidence_score")

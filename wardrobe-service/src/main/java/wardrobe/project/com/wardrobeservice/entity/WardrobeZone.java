@@ -25,7 +25,7 @@ public class WardrobeZone {
     @JoinColumn(name = "wardrobe_id", nullable = false)
     private Wardrobe wardrobe;
 
-    @Column(name = "zone_name", nullable = false)
+    @Column(name = "zone_name", nullable = false, length = 100)
     private String zoneName;
 
     @Column(name = "description", columnDefinition = "TEXT")
