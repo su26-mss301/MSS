@@ -26,7 +26,7 @@ public class Wardrobe {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "wardrobe_name", nullable = false)
+    @Column(name = "wardrobe_name", nullable = false, length = 100)
     private String wardrobeName;
 
     @CreationTimestamp
