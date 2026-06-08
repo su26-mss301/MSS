@@ -23,9 +23,11 @@ spring:
               predicates:
                 - Path=/api/v1/recommendation/**
             - id: ai-detection-service
-              uri: lb://ai-detection-service
+              uri: http://localhost:8084
               predicates:
                 - Path=/api/v1/ai/**
+              filters:
+                - StripPrefix=3
             - id: storage-service
               uri: lb://storage-service
               predicates:

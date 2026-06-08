@@ -2,6 +2,21 @@ spring:
   application:
     name: recommendation-service
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/recommendation_db
+    username: postgres
+    password: 123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
 server:
   port: 8083
   servlet:
