@@ -5,24 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a635b67a-3773-47d9-a690-93d42c8cb5b5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/MSS.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/config/S3Config.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/controller/StorageController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/dto/ImageResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/model/Image.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/repository/ImageRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/service/StorageService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/service/StorageServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage-service/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/StorageServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/StorageServiceApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/storage-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -120,6 +103,7 @@
         <entry key="SpringBootApplicationConfigurationType">
           <value>
             <map>
+              <entry key="ApiGatewayApplication" value="STOPPED" />
               <entry key="StorageServiceApplication" value="STOPPED" />
               <entry key="UserServiceApplication" value="STOPPED" />
             </map>
@@ -231,7 +215,8 @@
       <workItem from="1780903121304" duration="2585000" />
       <workItem from="1780905765701" duration="912000" />
       <workItem from="1780914180888" duration="1393000" />
-      <workItem from="1780921850440" duration="43000" />
+      <workItem from="1780921850440" duration="787000" />
+      <workItem from="1780925923655" duration="50000" />
     </task>
     <servers />
   </component>
