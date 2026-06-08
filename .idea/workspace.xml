@@ -44,13 +44,16 @@
       <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" afterDir="false" />
 
     <list default="true" id="b0bf5af1-b356-4e66-84f7-5daa169da50d" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wardrobe-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/Category.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/Category.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/ClothingItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/ClothingItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/Wardrobe.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/Wardrobe.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/WardrobeZone.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/entity/WardrobeZone.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeZoneController.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeZoneController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeZoneRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeZoneRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeService.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeZoneService.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeZoneService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeZoneServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeZoneServiceImpl.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -69,24 +72,40 @@
 
   <component name="CopilotPersistence">
     <persistenceIdMap>
-      <entry key="_D:/MSS/MSS" value="3EXWqFJeryxY99RlgW8QFWsugLb" />
+      <entry key="_D:/MSS/MSS/discovery-server" value="3EOv07s4q8wIFtg5VzNntdSEi6e" />
     </persistenceIdMap>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Class" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="MavenImportPreferences">
-    <option name="generalSettings">
-      <MavenGeneralSettings>
-        <option name="mavenHomeTypeForPersistence" value="WRAPPER" />
-      </MavenGeneralSettings>
-    </option>
-  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;annguyen112233&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/su26-mss301/MSS.git&quot;,
+    &quot;accountId&quot;: &quot;54e62a60-fbe2-420f-9ad4-c2a365683c2a&quot;
+  }
+}</component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
   <component name="ProjectColorInfo">{
-  &quot;customColor&quot;: &quot;&quot;,
   &quot;associatedIndex&quot;: 2
 }</component>
   <component name="ProjectId" id="3EOv07s4q8wIFtg5VzNntdSEi6e" />
+
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
   </component>
@@ -95,9 +114,11 @@
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
+    <option name="showMembers" value="true" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+
     "Maven.user-service [clean].executor": "Run",
     "Maven.user-service [compile].executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
@@ -106,6 +127,17 @@
     "RequestMappingsPanelWidth0": "75",
     "RequestMappingsPanelWidth1": "75",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.DiscoveryServerApplication.executor": "Run",
+    "Spring Boot.UserServiceApplication.executor": "Run",
+    "Spring Boot.WardrobeServiceApplication.executor": "Run",
+    "git-widget-placeholder": "feat/wardrobe-crud-and-exception-handler",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/chuyennganh/KI8/MSS/Wardrobe/ai-detection-service/src/main/java/wardrobe/project/com/aidetectionservice",
+
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "Spring Boot.AiDetectionServiceApplication.executor": "Run",
@@ -122,6 +154,10 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "run.configurations.included.in.services": "true",
+    "vue.rearranger.settings.migration": "true"
+
     "project.structure.last.edited": "Project",
     "project.structure.proportion": "0.0",
     "project.structure.side.proportion": "0.0",
@@ -247,12 +283,88 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;reference.projectsettings.compiler.javacompiler&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}</component>
-  <component name="RunManager">
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\ai-detection-service\src\main\java\wardrobe\project\com\aidetectionservice" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\recommendation-service\src\main\java\wardrobe\project\com\recommendationservice" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\user-service\src\main\java\wardrobe\project\com\userservice" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\recommendation-service\src\main\java" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\storage-service\src\main\java" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="configurationTypes">
+      <set>
+        <option value="KtorApplicationConfigurationType" />
+        <option value="MicronautRunConfigurationType" />
+        <option value="QuarkusRunConfigurationType" />
+        <option value="SpringBootApplicationConfigurationType" />
+      </set>
+    </option>
+    <option name="configurationStatuses">
+      <map>
+        <entry key="SpringBootApplicationConfigurationType">
+          <value>
+            <map>
+              <entry key="ApiGatewayApplication" value="STOPPED" />
+              <entry key="DiscoveryServerApplication" value="STOPPED" />
+              <entry key="WardrobeServiceApplication" value="STOPPED" />
+            </map>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="RunManager" selected="Spring Boot.WardrobeServiceApplication">
+    <configuration name="AiDetectionServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="ai-detection-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.aidetectionservice.AiDetectionServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ApiGatewayApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="api-gateway" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.apigateway.ApiGatewayApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="DiscoveryServerApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="discovery-server" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.discoveryserver.DiscoveryServerApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="RecommendationServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="recommendation-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.recommendationservice.RecommendationServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="StorageServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="storage-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.storageservice.StorageServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="UserServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="user-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.userservice.UserServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="WardrobeServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="wardrobe-service" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.wardrobeservice.WardrobeServiceApplication" />
-      <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$/wardrobe-service" />
       <extension name="net.ashald.envfile">
         <option name="IS_ENABLED" value="true" />
         <option name="IS_SUBST" value="false" />
@@ -289,11 +401,13 @@
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="b0bf5af1-b356-4e66-84f7-5daa169da50d" name="Changes" comment="" />
-      <created>1780325584196</created>
+      <created>1780062205082</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1780062205082</updated>
       <workItem from="1780062206461" duration="4680000" />
+      <workItem from="1780918178360" duration="3411000" />
+
       <workItem from="1780067366483" duration="703000" />
       <workItem from="1780068108453" duration="59000" />
       <workItem from="1780212284168" duration="17000" />

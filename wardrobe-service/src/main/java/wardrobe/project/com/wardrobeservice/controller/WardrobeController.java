@@ -84,4 +84,14 @@ public class WardrobeController {
                 .data(null)
                 .build());
     }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search wardrobes by name")
+    public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> searchWardrobes(@RequestParam String keyword) {
+        return ResponseEntity.ok(ApiResponse.<List<WardrobeResponseDTO>>builder()
+                .success(true)
+                .message("Search results fetched successfully")
+                .data(wardrobeService.searchWardrobes(keyword))
+                .build());
+    }
 }

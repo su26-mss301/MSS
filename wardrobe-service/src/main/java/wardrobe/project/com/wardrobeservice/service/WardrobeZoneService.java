@@ -14,4 +14,5 @@ public interface WardrobeZoneService {
     List<WardrobeZoneResponseDTO> getZonesByWardrobeId(UUID wardrobeId);
     WardrobeZoneResponseDTO updateZone(UUID id, WardrobeZoneUpdateRequestDTO request);
     void deleteZone(UUID id);
+    List<WardrobeZoneResponseDTO> searchZones(UUID wardrobeId, String keyword);
 }

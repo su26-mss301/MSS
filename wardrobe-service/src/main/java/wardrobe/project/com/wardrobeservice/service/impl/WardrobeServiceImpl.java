@@ -72,6 +72,17 @@ public class WardrobeServiceImpl implements WardrobeService {
         wardrobeRepository.deleteById(id);
     }
 
+    @Override
+    public List<WardrobeResponseDTO> searchWardrobes(String keyword) {
+        List<Wardrobe> wardrobes = wardrobeRepository.findByWardrobeNameContainingIgnoreCase(keyword);
+        if (wardrobes.isEmpty()) {
+            throw new AppException(ErrorCode.WARDROBE_NOT_FOUND);
+        }
+        return wardrobes.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private WardrobeResponseDTO mapToResponse(Wardrobe wardrobe) {
         return WardrobeResponseDTO.builder()
                 .wardrobeId(wardrobe.getWardrobeId())
