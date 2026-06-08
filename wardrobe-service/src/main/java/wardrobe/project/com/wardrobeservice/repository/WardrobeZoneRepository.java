@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface WardrobeZoneRepository extends JpaRepository<WardrobeZone, UUID> {
     List<WardrobeZone> findByWardrobe_WardrobeId(UUID wardrobeId);
+    List<WardrobeZone> findByWardrobe_WardrobeIdAndZoneNameContainingIgnoreCase(UUID wardrobeId, String keyword);
+    List<WardrobeZone> findByZoneNameContainingIgnoreCase(String keyword);
 }

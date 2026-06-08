@@ -85,6 +85,24 @@ public class WardrobeZoneServiceImpl implements WardrobeZoneService {
         wardrobeZoneRepository.deleteById(id);
     }
 
+    @Override
+    public List<WardrobeZoneResponseDTO> searchZones(UUID wardrobeId, String keyword) {
+        List<WardrobeZone> zones;
+        if (wardrobeId != null) {
+            zones = wardrobeZoneRepository.findByWardrobe_WardrobeIdAndZoneNameContainingIgnoreCase(wardrobeId, keyword);
+        } else {
+            zones = wardrobeZoneRepository.findByZoneNameContainingIgnoreCase(keyword);
+        }
+        
+        if (zones.isEmpty()) {
+            throw new AppException(ErrorCode.WARDROBE_ZONE_NOT_FOUND);
+        }
+        
+        return zones.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private WardrobeZoneResponseDTO mapToResponse(WardrobeZone zone) {
         return WardrobeZoneResponseDTO.builder()
                 .zoneId(zone.getZoneId())

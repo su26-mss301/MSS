@@ -14,4 +14,5 @@ public interface WardrobeService {
     List<WardrobeResponseDTO> getWardrobesByUserId(UUID userId);
     WardrobeResponseDTO updateWardrobe(UUID id, WardrobeUpdateRequestDTO request);
     void deleteWardrobe(UUID id);
+    List<WardrobeResponseDTO> searchWardrobes(String keyword);
 }

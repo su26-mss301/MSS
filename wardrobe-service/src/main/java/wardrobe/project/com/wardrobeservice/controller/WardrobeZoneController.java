@@ -84,4 +84,16 @@ public class WardrobeZoneController {
                 .data(null)
                 .build());
     }
+
+    @GetMapping("/search")
+    @Operation(summary = "Search wardrobe zones by name")
+    public ResponseEntity<ApiResponse<List<WardrobeZoneResponseDTO>>> searchZones(
+            @RequestParam(required = false) UUID wardrobeId,
+            @RequestParam String keyword) {
+        return ResponseEntity.ok(ApiResponse.<List<WardrobeZoneResponseDTO>>builder()
+                .success(true)
+                .message("Search results fetched successfully")
+                .data(wardrobeZoneService.searchZones(wardrobeId, keyword))
+                .build());
+    }
 }
