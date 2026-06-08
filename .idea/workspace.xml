@@ -23,11 +23,76 @@
       <change beforePath="$PROJECT_DIR$/storage-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/StorageServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/src/main/java/wardrobe/project/com/storageservice/StorageServiceApplication.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/storage-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/storage-service/src/main/resources/application.yml" afterDir="false" />
+
+      <change afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/api-gateway/src/main/java/wardrobe/project/com/apigateway/config/CorsConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/.env" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/docker-compose.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/config/AwsCognitoConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/config/CookieBearerTokenResolver.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/config/SecurityConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/auth/AuthController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/user/UserController.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/ConfirmRegisterRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/LoginRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/RegisterRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/ResendCodeRequest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/response/auth/CognitoLoginResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/response/user/UserResponse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/BaseEntity.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/FriendGroup.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/User.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/UserProfile.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/enums/Gender.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/enums/GroupMemberRole.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/enums/UserStatus.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/mapper/UserMapper.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/repository/UserRepository.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/auth/CognitoAuthService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/auth/Impl/CognitoAuthServiceImpl.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/user/UserService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/user/impl/UserServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/UserController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" afterDir="false" />
+
+    <list default="true" id="b0bf5af1-b356-4e66-84f7-5daa169da50d" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeZoneController.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/controller/WardrobeZoneController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeZoneRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/repository/WardrobeZoneRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeService.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeZoneService.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/WardrobeZoneService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeZoneServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/java/wardrobe/project/com/wardrobeservice/service/impl/WardrobeZoneServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wardrobe-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/wardrobe-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Enum" />
+        <option value="Interface" />
+        <option value="Class" />
+      </list>
+    </option>
+
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_D:/MSS/MSS/discovery-server" value="3EOv07s4q8wIFtg5VzNntdSEi6e" />
+    </persistenceIdMap>
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -59,11 +124,162 @@
   &quot;associatedIndex&quot;: 2
 }</component>
   <component name="ProjectId" id="3EOv07s4q8wIFtg5VzNntdSEi6e" />
+
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+
+  <component name="ProjectId" id="3EXWqFJeryxY99RlgW8QFWsugLb" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
     <option name="showMembers" value="true" />
   </component>
+
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+
+    "Maven.user-service [clean].executor": "Run",
+    "Maven.user-service [compile].executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.DiscoveryServerApplication.executor": "Run",
+    "Spring Boot.UserServiceApplication.executor": "Run",
+    "Spring Boot.WardrobeServiceApplication.executor": "Run",
+    "git-widget-placeholder": "feat/wardrobe-crud-and-exception-handler",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "D:/chuyennganh/KI8/MSS/Wardrobe/ai-detection-service/src/main/java/wardrobe/project/com/aidetectionservice",
+
+    "RunOnceActivity.git.unshallow": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "Spring Boot.AiDetectionServiceApplication.executor": "Run",
+    "Spring Boot.ApiGatewayApplication.executor": "Run",
+    "Spring Boot.DiscoveryServerApplication.executor": "Run",
+    "Spring Boot.RecommendationServiceApplication.executor": "Run",
+    "Spring Boot.UserServiceApplication.executor": "Run",
+    "Spring Boot.WardrobeServiceApplication.executor": "Run",
+    "git-widget-placeholder": "develop",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "D:/chuyennganh/KI8/MSS/Wardrobe",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "run.configurations.included.in.services": "true",
+    "vue.rearranger.settings.migration": "true"
+
+    "project.structure.last.edited": "Project",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "run.configurations.included.in.services": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\ai-detection-service\src\main\java\wardrobe\project\com\aidetectionservice" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\recommendation-service\src\main\java\wardrobe\project\com\recommendationservice" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\user-service\src\main\java\wardrobe\project\com\userservice" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\recommendation-service\src\main\java" />
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\storage-service\src\main\java" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\chuyennganh\KI8\MSS\Wardrobe" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="configurationTypes">
+      <set>
+        <option value="KtorApplicationConfigurationType" />
+        <option value="MicronautRunConfigurationType" />
+        <option value="QuarkusRunConfigurationType" />
+        <option value="SpringBootApplicationConfigurationType" />
+      </set>
+    </option>
+    <option name="openRunningConfigInTab" value="true" />
+  </component>
+  <component name="RunManager" selected="Spring Boot.AiDetectionServiceApplication">
+    <configuration name="AiDetectionServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="ai-detection-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.aidetectionservice.AiDetectionServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ApiGatewayApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="api-gateway" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.apigateway.ApiGatewayApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="DiscoveryServerApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+      <module name="discovery-server" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.discoveryserver.DiscoveryServerApplication" />
+      <extension name="net.ashald.envfile">
+        <option name="IS_ENABLED" value="false" />
+        <option name="IS_SUBST" value="false" />
+        <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+        <option name="IS_IGNORE_MISSING_FILES" value="false" />
+        <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+        <ENTRIES>
+          <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        </ENTRIES>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="RecommendationServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="recommendation-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.recommendationservice.RecommendationServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="StorageServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="storage-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.storageservice.StorageServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="UserServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/user-service/.env" />
+      </option>
+      <module name="user-service" />
+      <selectedOptions>
+        <option name="environmentVariables" />
+      </selectedOptions>
+      <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.userservice.UserServiceApplication" />
+      <extension name="net.ashald.envfile">
+        <option name="IS_ENABLED" value="false" />
+        <option name="IS_SUBST" value="false" />
+        <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+        <option name="IS_IGNORE_MISSING_FILES" value="false" />
+        <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+        <ENTRIES>
+          <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+          <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="user-service/.env" />
+        </ENTRIES>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
@@ -91,6 +307,19 @@
     &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
     &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Spring Boot.WardrobeServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feat/setup-db-wardrobe-service&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.projectsettings.compiler.javacompiler&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
@@ -122,6 +351,9 @@
             <map>
               <entry key="StorageServiceApplication" value="STOPPED" />
               <entry key="UserServiceApplication" value="STOPPED" />
+              <entry key="ApiGatewayApplication" value="STOPPED" />
+              <entry key="DiscoveryServerApplication" value="STOPPED" />
+              <entry key="WardrobeServiceApplication" value="STOPPED" />
             </map>
           </value>
         </entry>
@@ -129,6 +361,7 @@
     </option>
   </component>
   <component name="RunManager" selected="Spring Boot.StorageServiceApplication">
+  <component name="RunManager" selected="Spring Boot.WardrobeServiceApplication">
     <configuration name="AiDetectionServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="ai-detection-service" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.aidetectionservice.AiDetectionServiceApplication" />
@@ -195,6 +428,17 @@
     <configuration name="WardrobeServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="wardrobe-service" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="wardrobe.project.com.wardrobeservice.WardrobeServiceApplication" />
+      <extension name="net.ashald.envfile">
+        <option name="IS_ENABLED" value="true" />
+        <option name="IS_SUBST" value="false" />
+        <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+        <option name="IS_IGNORE_MISSING_FILES" value="false" />
+        <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+        <ENTRIES>
+          <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+          <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="wardrobe-service/.env" />
+        </ENTRIES>
+      </extension>
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -214,12 +458,14 @@
       <set>
         <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.27397.103" />
         <option value="bundled-js-predefined-d6986cc7102b-3aa1da707db6-JavaScript-IU-252.27397.103" />
+        <option value="bundled-jdk-30f59d01ecdd-2fc7cc6b9a17-intellij.indexing.shared.core-IU-253.31033.145" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-IU-253.31033.145" />
       </set>
     </attachedChunks>
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="a635b67a-3773-47d9-a690-93d42c8cb5b5" name="Changes" comment="" />
+      <changelist id="b0bf5af1-b356-4e66-84f7-5daa169da50d" name="Changes" comment="" />
       <created>1780062205082</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
@@ -232,10 +478,33 @@
       <workItem from="1780905765701" duration="912000" />
       <workItem from="1780914180888" duration="1393000" />
       <workItem from="1780921850440" duration="43000" />
+      <workItem from="1780918178360" duration="3411000" />
+
+      <workItem from="1780067366483" duration="703000" />
+      <workItem from="1780068108453" duration="59000" />
+      <workItem from="1780212284168" duration="17000" />
+      <workItem from="1780318889475" duration="907000" />
+      <workItem from="1780409442958" duration="8030000" />
+      <workItem from="1780449249822" duration="143000" />
+      <workItem from="1780847139711" duration="4916000" />
+      <workItem from="1780912400868" duration="4441000" />
+
+      <updated>1780325584196</updated>
+      <workItem from="1780325587050" duration="803000" />
+      <workItem from="1780376438035" duration="3306000" />
+      <workItem from="1780470035811" duration="6198000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
   </component>
 </project>
