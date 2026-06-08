@@ -1,39 +1,32 @@
 package wardrobe.project.com.recommendationservice.engine;
 
 import org.springframework.stereotype.Component;
-import wardrobe.project.com.recommendationservice.dto.ClothingItemDto;
+import wardrobe.project.com.recommendationservice.dto.external.ClothingItemExternalDTO;
 import java.util.List;
 import java.util.Optional;
 
 @Component
 public class OutfitGenerator {
 
-    // Hàm nhận vào một list đồ đã được chấm điểm (từ cao xuống thấp) và ghép thành Outfit
-    public List<ClothingItemDto> generateBestOutfit(List<ClothingItemDto> topRankedItems) {
-        // Tìm cái áo (Top) điểm cao nhất
-        Optional<ClothingItemDto> bestTop = topRankedItems.stream()
-                .filter(item -> item.getCategory().equalsIgnoreCase("Top") || item.getCategory().equalsIgnoreCase("Shirt"))
+    public List<ClothingItemExternalDTO> generateBestOutfit(List<ClothingItemExternalDTO> topRankedItems) {
+        Optional<ClothingItemExternalDTO> bestTop = topRankedItems.stream()
+                .filter(item -> item.getItemName() != null &&
+                        (item.getItemName().toLowerCase().contains("shirt") || item.getItemName().toLowerCase().contains("áo")))
                 .findFirst();
 
-        // Tìm cái quần (Bottom) điểm cao nhất
-        Optional<ClothingItemDto> bestBottom = topRankedItems.stream()
-                .filter(item -> item.getCategory().equalsIgnoreCase("Bottom") || item.getCategory().equalsIgnoreCase("Trousers"))
+        Optional<ClothingItemExternalDTO> bestBottom = topRankedItems.stream()
+                .filter(item -> item.getItemName() != null &&
+                        (item.getItemName().toLowerCase().contains("pants") || item.getItemName().toLowerCase().contains("quần")))
                 .findFirst();
 
-        // Tìm đôi giày (Shoes) điểm cao nhất
-        Optional<ClothingItemDto> bestShoes = topRankedItems.stream()
-                .filter(item -> item.getCategory().equalsIgnoreCase("Shoes"))
+        Optional<ClothingItemExternalDTO> bestShoes = topRankedItems.stream()
+                .filter(item -> item.getItemName() != null &&
+                        (item.getItemName().toLowerCase().contains("shoes") || item.getItemName().toLowerCase().contains("giày")))
                 .findFirst();
 
-        // Nếu có đủ áo và quần thì mới coi là một bộ outfit hợp lệ
         if (bestTop.isPresent() && bestBottom.isPresent()) {
-            return List.of(
-                    bestTop.get(),
-                    bestBottom.get(),
-                    bestShoes.orElse(null) // Giày có thể null nếu trong tủ không có
-            );
+            return List.of(bestTop.get(), bestBottom.get(), bestShoes.orElse(null));
         }
-
-        return List.of(); // Trả về list rỗng nếu không thể phối thành bộ
+        return List.of();
     }
 }
