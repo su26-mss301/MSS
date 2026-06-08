@@ -5,43 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a635b67a-3773-47d9-a690-93d42c8cb5b5" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/api-gateway/src/main/java/wardrobe/project/com/apigateway/config/CorsConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/docker-compose.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/config/AwsCognitoConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/config/CookieBearerTokenResolver.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/config/SecurityConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/auth/AuthController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/user/UserController.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/ConfirmRegisterRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/LoginRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/RegisterRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/request/auth/ResendCodeRequest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/response/auth/CognitoLoginResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/dto/response/user/UserResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/BaseEntity.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/FriendGroup.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/User.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/entity/UserProfile.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/enums/Gender.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/enums/GroupMemberRole.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/enums/UserStatus.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/mapper/UserMapper.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/repository/UserRepository.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/auth/CognitoAuthService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/auth/Impl/CognitoAuthServiceImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/user/UserService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/service/user/impl/UserServiceImpl.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/api-gateway/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/api-gateway/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/java/wardrobe/project/com/userservice/controller/UserController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/user-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,40 +53,40 @@
     <option name="showLibraryContents" value="true" />
     <option name="showMembers" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Maven.user-service [clean].executor": "Run",
-    "Maven.user-service [compile].executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RequestMappingsPanelOrder0": "0",
-    "RequestMappingsPanelOrder1": "1",
-    "RequestMappingsPanelWidth0": "75",
-    "RequestMappingsPanelWidth1": "75",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "Spring Boot.AiDetectionServiceApplication.executor": "Run",
-    "Spring Boot.ApiGatewayApplication.executor": "Run",
-    "Spring Boot.DiscoveryServerApplication.executor": "Run",
-    "Spring Boot.RecommendationServiceApplication.executor": "Run",
-    "Spring Boot.UserServiceApplication.executor": "Run",
-    "Spring Boot.WardrobeServiceApplication.executor": "Run",
-    "git-widget-placeholder": "develop",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "D:/chuyennganh/KI8/MSS/Wardrobe",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Project",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "run.code.analysis.last.selected.profile": "pProject Default",
-    "run.configurations.included.in.services": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Maven.user-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.user-service [compile].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;Spring Boot.AiDetectionServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.ApiGatewayApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.DiscoveryServerApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.RecommendationServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.UserServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.WardrobeServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/chuyennganh/KI8/MSS/Wardrobe&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\chuyennganh\KI8\MSS\Wardrobe\ai-detection-service\src\main\java\wardrobe\project\com\aidetectionservice" />
