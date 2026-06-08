@@ -2,12 +2,17 @@ package wardrobe.project.com.recommendationservice.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import wardrobe.project.com.recommendationservice.client.UserClient;
-import wardrobe.project.com.recommendationservice.client.WardrobeClient;
-import wardrobe.project.com.recommendationservice.dto.ClothingItemDto;
-import wardrobe.project.com.recommendationservice.dto.UserProfileDto;
+import org.springframework.web.client.RestTemplate;
+import wardrobe.project.com.recommendationservice.dto.response.ApiResponse;
+import wardrobe.project.com.recommendationservice.dto.response.OutfitResponseDTO;
+import wardrobe.project.com.recommendationservice.dto.response.RecommendationResponseDTO;
+import wardrobe.project.com.recommendationservice.dto.external.ClothingItemExternalDTO;
+import wardrobe.project.com.recommendationservice.dto.external.UserProfileExternalDTO;
 import wardrobe.project.com.recommendationservice.engine.OutfitGenerator;
 import wardrobe.project.com.recommendationservice.engine.RecommendationEngine;
 import wardrobe.project.com.recommendationservice.entity.Event;
@@ -25,68 +30,80 @@ import java.util.UUID;
 @Slf4j
 public class RecommendationServiceImpl {
 
-    private final WardrobeClient wardrobeClient;
-    private final UserClient userClient;
     private final RecommendationEngine engine;
     private final OutfitGenerator outfitGenerator;
-
     private final OutfitRepository outfitRepository;
     private final RecommendItemRepository recommendItemRepository;
-
     private final EventRepository eventRepository;
+    private final RestTemplate restTemplate;
 
-    // 1. CONTENT-BASED (WEEK 2)
-    @Transactional
-    public RecommendItem generateContentBased(UUID userId) {
-        log.info("Generating Content-Based for User: {}", userId);
-        UserProfileDto profile = userClient.getUserProfile(userId);
-        List<ClothingItemDto> wardrobe = wardrobeClient.getUserClothes(userId);
+    private static final String USER_SERVICE_URL = "http://user-service/users";
+    private static final String WARDROBE_SERVICE_URL = "http://wardrobe-service/clothing-items";
 
-        List<ClothingItemDto> rankedItems = engine.rankByContentBased(wardrobe, profile);
-        List<ClothingItemDto> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
-
-        return saveRecommendation(userId, finalOutfit, null, 8.5f, "Gợi ý theo sở thích cá nhân");
+    private UserProfileExternalDTO fetchUserProfile(UUID userId) {
+        String url = USER_SERVICE_URL + "/" + userId + "/profile";
+        return restTemplate.getForObject(url, UserProfileExternalDTO.class);
     }
 
-    // 2. EVENT-BASED (WEEK 3 TASK)
+    private List<ClothingItemExternalDTO> fetchUserWardrobe(UUID userId) {
+        String url = WARDROBE_SERVICE_URL + "/user/" + userId;
+        try {
+            ResponseEntity<ApiResponse<List<ClothingItemExternalDTO>>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, null,
+                    new ParameterizedTypeReference<ApiResponse<List<ClothingItemExternalDTO>>>() {}
+            );
+            if (response.getBody() != null && response.getBody().isSuccess()) {
+                return response.getBody().getData();
+            }
+            return List.of();
+        } catch (Exception e) {
+            log.error("Error connecting to Wardrobe Service: ", e);
+            throw new RuntimeException("Không thể kết nối danh mục tủ đồ.");
+        }
+    }
+
     @Transactional
-    public RecommendItem generateEventBased(UUID userId, String eventType) {
-        log.info("Generating Event-Based for User: {}, Event: {}", userId, eventType);
-        List<ClothingItemDto> wardrobe = wardrobeClient.getUserClothes(userId);
+    public RecommendationResponseDTO generateContentBased(UUID userId) {
+        UserProfileExternalDTO profile = fetchUserProfile(userId);
+        List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
 
-        // Lọc đồ theo sự kiện
-        List<ClothingItemDto> filteredItems = engine.filterByEvent(wardrobe, eventType);
-        List<ClothingItemDto> finalOutfit = outfitGenerator.generateBestOutfit(filteredItems);
+        List<ClothingItemExternalDTO> rankedItems = engine.rankByContentBased(wardrobe, profile);
+        List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
-        // Tìm event trong DB để map khóa ngoại
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 8.5f, "Gợi ý theo sở thích");
+        return mapToResponse(entity);
+    }
+
+    @Transactional
+    public RecommendationResponseDTO generateEventBased(UUID userId, String eventType) {
+        List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
+
+        List<ClothingItemExternalDTO> filteredItems = engine.filterByEvent(wardrobe, eventType);
+        List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(filteredItems);
         Event event = eventRepository.findByEventType(eventType).orElse(null);
 
-        return saveRecommendation(userId, finalOutfit, event, 9.0f, "Gợi ý đi " + eventType);
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, 9.0f, "Gợi ý đi " + eventType);
+        return mapToResponse(entity);
     }
 
-    // 3. COLLABORATIVE FILTERING (WEEK 4 TASK)
     @Transactional
-    public RecommendItem generateCollaborative(UUID userId, UUID groupId) {
-        log.info("Generating Collaborative for User: {}, Group: {}", userId, groupId);
-        List<ClothingItemDto> wardrobe = wardrobeClient.getUserClothes(userId);
+    public RecommendationResponseDTO generateCollaborative(UUID userId, UUID groupId) {
+        List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
+        List<String> trendingStyles = List.of("Formal", "Casual");
 
-        // Giả lập lấy danh sách style thịnh hành từ nhóm bạn (Thực tế sẽ gọi UserClient)
-        List<String> trendingStyles = List.of("Streetwear", "Vintage");
+        List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
+        List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
-        List<ClothingItemDto> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
-        List<ClothingItemDto> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
-
-        return saveRecommendation(userId, finalOutfit, null, 7.8f, "Gợi ý theo xu hướng nhóm bạn");
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 7.8f, "Gợi ý theo nhóm bạn");
+        return mapToResponse(entity);
     }
 
-    // Hàm dùng chung để lưu kết quả vào Database
-    private RecommendItem saveRecommendation(UUID userId, List<ClothingItemDto> items, Event event, float score, String outfitName) {
+    private RecommendItem saveRecommendation(UUID userId, List<ClothingItemExternalDTO> items, Event event, float score, String name) {
         if (items == null || items.isEmpty()) {
-            throw new RuntimeException("Không đủ quần áo để phối thành bộ hợp lệ!");
+            throw new RuntimeException("Không đủ quần áo phù hợp!");
         }
-
         Outfit outfit = new Outfit();
-        outfit.setOutfitName(outfitName);
+        outfit.setOutfitName(name);
         outfit = outfitRepository.save(outfit);
 
         RecommendItem rec = new RecommendItem();
@@ -94,7 +111,23 @@ public class RecommendationServiceImpl {
         rec.setOutfit(outfit);
         rec.setEvent(event);
         rec.setRecommendationScore(score);
-
         return recommendItemRepository.save(rec);
+    }
+
+    // Hàm chuyển đổi Entity sang DTO an toàn
+    private RecommendationResponseDTO mapToResponse(RecommendItem item) {
+        OutfitResponseDTO outfitDTO = OutfitResponseDTO.builder()
+                .outfitId(item.getOutfit().getId())
+                .outfitName(item.getOutfit().getOutfitName())
+                .description(item.getOutfit().getDescription())
+                .build();
+
+        return RecommendationResponseDTO.builder()
+                .recommendationId(item.getId())
+                .userId(item.getUserId())
+                .outfit(outfitDTO)
+                .recommendationScore(item.getRecommendationScore())
+                .eventType(item.getEvent() != null ? item.getEvent().getEventType() : "General")
+                .build();
     }
 }
