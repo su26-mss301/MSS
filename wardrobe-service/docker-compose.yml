@@ -1,0 +1,15 @@
+services:
+  wardrobe-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wardrobe-service
+    ports:
+      - "3434:8082" # Ánh xạ port 3434 ở host vào port 8082 của container
+    env_file:
+      - .env
+    environment:
+      # Ghi đè localhost thành host.docker.internal để container có thể kết nối đến DB và Eureka đang chạy trên máy host
+      - WARDROBE_DB_URL=jdbc:postgresql://host.docker.internal:5432/wardrobe-service
+      - EUREKA_URL=http://host.docker.internal:8761/eureka
+    restart: unless-stopped
