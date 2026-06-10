@@ -43,3 +43,4 @@ aws:
     region: ${AWS_REGION}
     client-id: ${AWS_CLIENT_ID}
     user-pool-id: ${AWS_USER_POOL_ID}
+    default-group: ROLE_USER

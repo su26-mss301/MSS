@@ -1,5 +1,6 @@
 package wardrobe.project.com.userservice.controller.auth;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -9,6 +10,7 @@ import wardrobe.project.com.userservice.dto.request.auth.ConfirmRegisterRequest;
 import wardrobe.project.com.userservice.dto.request.auth.LoginRequest;
 import wardrobe.project.com.userservice.dto.request.auth.RegisterRequest;
 import wardrobe.project.com.userservice.dto.request.auth.ResendCodeRequest;
+import wardrobe.project.com.userservice.dto.response.user.UserResponse;
 import wardrobe.project.com.userservice.service.auth.CognitoAuthService;
 
 import java.time.Duration;
@@ -60,13 +62,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        cognitoAuthService.register(
-                request.getEmail(),
-                request.getPassword()
-        );
-
-        return ResponseEntity.ok(Map.of("message", "Registration success"));
+    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
+        return cognitoAuthService.register(request);
     }
 
     @PostMapping("/confirm-register")

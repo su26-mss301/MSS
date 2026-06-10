@@ -3,6 +3,7 @@ package wardrobe.project.com.apigateway.filter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -24,6 +25,7 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private static final String HEADER_ACTOR_TYPE = "X-Auth-Actor-Type";
     private static final String HEADER_USER_ID = "X-Auth-User-Id";
+    private static final String HEADER_USER_EMAIL = "X-Auth-User-Email";
     private static final String HEADER_ROLE = "X-Auth-Role";
     private static final String HEADER_GROUPS = "X-Auth-Groups";
     private static final String HEADER_SCOPES = "X-Auth-Scopes";
@@ -34,6 +36,7 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     private final List<String> publicPaths = List.of(
+            "/api/v1/users/auth/**",
             "/api/v1/auth/**",
             "/auth/**",
             "/swagger-ui/**",
@@ -58,41 +61,63 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(sanitizedExchange);
         }
 
-        String authorizationHeader = sanitizedExchange.getRequest()
-                .getHeaders()
-                .getFirst(HttpHeaders.AUTHORIZATION);
+        TokenPair tokenPair = resolveTokens(sanitizedExchange);
 
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        if (tokenPair.accessToken() == null || tokenPair.accessToken().isBlank()) {
             return writeError(
                     sanitizedExchange,
                     HttpStatus.UNAUTHORIZED,
                     "AUTH_TOKEN_MISSING",
-                    "Missing Authorization Bearer token"
+                    "Missing access token"
             );
         }
 
-        String token = authorizationHeader.substring(7);
+        Mono<Jwt> accessJwtMono = jwtDecoder.decode(tokenPair.accessToken());
 
-        return jwtDecoder.decode(token)
-                .flatMap(jwt -> validateAndForward(sanitizedExchange, chain, jwt))
-                .onErrorResume(JwtException.class, ex -> writeError(
+        if (tokenPair.idToken() == null || tokenPair.idToken().isBlank()) {
+            return accessJwtMono
+                    .flatMap(accessJwt -> validateAndForward(
+                            sanitizedExchange,
+                            chain,
+                            accessJwt,
+                            null
+                    ))
+                    .onErrorResume(ex -> writeError(
+                            sanitizedExchange,
+                            HttpStatus.UNAUTHORIZED,
+                            "AUTH_TOKEN_INVALID",
+                            "Invalid access token or unable to obtain Cognito public keys"
+                    ));
+        }
+
+        Mono<Jwt> idJwtMono = jwtDecoder.decode(tokenPair.idToken());
+
+        return Mono.zip(accessJwtMono, idJwtMono)
+                .flatMap(tuple -> validateAndForward(
+                        sanitizedExchange,
+                        chain,
+                        tuple.getT1(),
+                        tuple.getT2()
+                ))
+                .onErrorResume(ex -> writeError(
                         sanitizedExchange,
                         HttpStatus.UNAUTHORIZED,
                         "AUTH_TOKEN_INVALID",
-                        "Invalid or expired access token"
+                        "Invalid access token, id token, or unable to obtain Cognito public keys"
                 ));
     }
 
     private Mono<Void> validateAndForward(
             ServerWebExchange exchange,
             GatewayFilterChain chain,
-            Jwt jwt
+            Jwt accessJwt,
+            Jwt idJwt
     ) {
-        String issuer = jwt.getIssuer() != null ? jwt.getIssuer().toString() : null;
-        String tokenUse = jwt.getClaimAsString("token_use");
-        String clientId = jwt.getClaimAsString("client_id");
-        String userId = jwt.getSubject();
-        String scopes = jwt.getClaimAsString("scope");
+        String issuer = accessJwt.getIssuer() != null ? accessJwt.getIssuer().toString() : null;
+        String tokenUse = accessJwt.getClaimAsString("token_use");
+        String clientId = accessJwt.getClaimAsString("client_id");
+        String userId = accessJwt.getSubject();
+        String scopes = accessJwt.getClaimAsString("scope");
 
         if (!cognitoProperties.getIssuerUri().equals(issuer)) {
             return writeError(
@@ -121,7 +146,57 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
             );
         }
 
-        List<String> groups = jwt.getClaimAsStringList("cognito:groups");
+        String email = "";
+
+        if (idJwt != null) {
+            String idIssuer = idJwt.getIssuer() != null ? idJwt.getIssuer().toString() : null;
+            String idTokenUse = idJwt.getClaimAsString("token_use");
+            String idAudience = idJwt.getAudience() != null && !idJwt.getAudience().isEmpty()
+                    ? idJwt.getAudience().get(0)
+                    : null;
+            String idSubject = idJwt.getSubject();
+
+            if (!cognitoProperties.getIssuerUri().equals(idIssuer)) {
+                return writeError(
+                        exchange,
+                        HttpStatus.UNAUTHORIZED,
+                        "AUTH_ID_TOKEN_INVALID_ISSUER",
+                        "Invalid id token issuer"
+                );
+            }
+
+            if (!"id".equals(idTokenUse)) {
+                return writeError(
+                        exchange,
+                        HttpStatus.UNAUTHORIZED,
+                        "AUTH_ID_TOKEN_INVALID_TYPE",
+                        "Token must be an id token"
+                );
+            }
+
+            if (!cognitoProperties.getAppClientId().equals(idAudience)) {
+                return writeError(
+                        exchange,
+                        HttpStatus.UNAUTHORIZED,
+                        "AUTH_ID_TOKEN_INVALID_AUDIENCE",
+                        "Invalid id token audience"
+                );
+            }
+
+            if (!userId.equals(idSubject)) {
+                return writeError(
+                        exchange,
+                        HttpStatus.UNAUTHORIZED,
+                        "AUTH_TOKEN_SUB_MISMATCH",
+                        "Access token and id token belong to different users"
+                );
+            }
+
+            String emailClaim = idJwt.getClaimAsString("email");
+            email = emailClaim == null ? "" : emailClaim;
+        }
+
+        List<String> groups = accessJwt.getClaimAsStringList("cognito:groups");
         if (groups == null) {
             groups = List.of();
         }
@@ -144,12 +219,14 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
         String finalScopes = scopes == null ? "" : scopes;
         String finalGroups = String.join(",", groups);
         String finalRequestId = requestId;
+        String finalEmail = email;
 
         ServerHttpRequest mutatedRequest = exchange.getRequest()
                 .mutate()
                 .headers(headers -> {
                     headers.set(HEADER_ACTOR_TYPE, "USER");
                     headers.set(HEADER_USER_ID, userId);
+                    headers.set(HEADER_USER_EMAIL, finalEmail);
                     headers.set(HEADER_ROLE, role);
                     headers.set(HEADER_GROUPS, finalGroups);
                     headers.set(HEADER_SCOPES, finalScopes);
@@ -178,6 +255,7 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
                 .headers(headers -> {
                     headers.remove(HEADER_ACTOR_TYPE);
                     headers.remove(HEADER_USER_ID);
+                    headers.remove(HEADER_USER_EMAIL);
                     headers.remove(HEADER_ROLE);
                     headers.remove(HEADER_GROUPS);
                     headers.remove(HEADER_SCOPES);
@@ -214,6 +292,42 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
         return exchange.getResponse().writeWith(
                 Mono.just(exchange.getResponse().bufferFactory().wrap(bytes))
         );
+    }
+
+    private record TokenPair(String accessToken, String idToken) {
+    }
+
+    private TokenPair resolveTokens(ServerWebExchange exchange) {
+        String accessToken = null;
+        String idToken = null;
+
+        String authorizationHeader = exchange.getRequest()
+                .getHeaders()
+                .getFirst(HttpHeaders.AUTHORIZATION);
+
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            accessToken = authorizationHeader.substring(7);
+        }
+
+        HttpCookie accessTokenCookie = exchange.getRequest()
+                .getCookies()
+                .getFirst("access_token");
+
+        if ((accessToken == null || accessToken.isBlank())
+                && accessTokenCookie != null
+                && accessTokenCookie.getValue() != null) {
+            accessToken = accessTokenCookie.getValue();
+        }
+
+        HttpCookie idTokenCookie = exchange.getRequest()
+                .getCookies()
+                .getFirst("id_token");
+
+        if (idTokenCookie != null && idTokenCookie.getValue() != null) {
+            idToken = idTokenCookie.getValue();
+        }
+
+        return new TokenPair(accessToken, idToken);
     }
 
     @Override

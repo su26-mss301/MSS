@@ -1,5 +1,7 @@
 package wardrobe.project.com.userservice.service.user.impl;
 
+import com.wardrobe.common.auth.AuthContext;
+import com.wardrobe.common.auth.AuthContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
@@ -19,24 +21,24 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     @Override
     @Transactional
-    public UserResponse syncCurrentUser(Jwt jwt) {
-        String userId = jwt.getSubject();
-        String email = jwt.getClaimAsString("email");
-        String username = jwt.getClaimAsString("cognito:username");
+    public UserResponse syncCurrentUser() {
+        AuthContext authContext = AuthContextHolder.get();
 
-        User user = userRepository.findById(userId)
-                .orElseGet(() -> {
-                    User newUser = User.builder()
-                            .userId(userId)
-                            .email(email)
-                            .username(username)
-                            .fullName(username)
-                            .status(UserStatus.ACTIVE)
-                            .build();
+        String cognitoSub = authContext.requireUserId();
+        String email = authContext.requireEmail();
 
-                    return userRepository.save(newUser);
-                });
+        User user = userRepository.findById(cognitoSub)
+                .orElseGet(() -> User.builder()
+                        .userId(cognitoSub)
+                        .status(UserStatus.ACTIVE)
+                        .build());
 
-        return userMapper.toUserResponse(user);
+        if (user.getEmail() == null || !user.getEmail().equals(email)) {
+            user.setEmail(email);
+        }
+
+        User savedUser = userRepository.save(user);
+
+        return userMapper.toUserResponse(savedUser);
     }
 }

@@ -21,6 +21,7 @@ public class AuthContextResolver {
         ActorType actorType = parseActorType(actorTypeValue);
 
         String userId = getHeader(request, AuthHeaderNames.USER_ID);
+        String email = getHeader(request, AuthHeaderNames.USER_EMAIL);
         Role role = parseRoleNullable(getHeader(request, AuthHeaderNames.ROLE));
         List<String> groups = parseCsv(getHeader(request, AuthHeaderNames.GROUPS));
         List<String> scopes = parseScopes(getHeader(request, AuthHeaderNames.SCOPES));
@@ -31,6 +32,7 @@ public class AuthContextResolver {
         return new AuthContext(
                 actorType,
                 userId,
+                email,
                 role,
                 groups,
                 scopes,

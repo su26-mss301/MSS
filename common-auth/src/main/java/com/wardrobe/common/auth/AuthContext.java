@@ -7,6 +7,7 @@ public class AuthContext {
 
     private final ActorType actorType;
     private final String userId;
+    private final String email;
     private final Role role;
     private final List<String> groups;
     private final List<String> scopes;
@@ -15,6 +16,7 @@ public class AuthContext {
     public AuthContext(
             ActorType actorType,
             String userId,
+            String email,
             Role role,
             List<String> groups,
             List<String> scopes,
@@ -22,6 +24,7 @@ public class AuthContext {
     ) {
         this.actorType = actorType;
         this.userId = userId;
+        this.email = email;
         this.role = role;
         this.groups = groups == null ? Collections.emptyList() : List.copyOf(groups);
         this.scopes = scopes == null ? Collections.emptyList() : List.copyOf(scopes);
@@ -34,6 +37,10 @@ public class AuthContext {
 
     public String getUserId() {
         return userId;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     public Role getRole() {
@@ -122,5 +129,16 @@ public class AuthContext {
         }
 
         return userId;
+    }
+
+    public String requireEmail() {
+        if (email == null || email.isBlank()) {
+            throw new AuthException(
+                    AuthErrorCode.AUTH_CONTEXT_INVALID,
+                    "Current user email is not available"
+            );
+        }
+
+        return email;
     }
 }
