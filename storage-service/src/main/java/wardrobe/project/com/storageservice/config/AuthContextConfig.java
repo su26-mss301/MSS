@@ -1,4 +1,4 @@
-package wardrobe.project.com.wardrobeservice.config;
+package wardrobe.project.com.storageservice.config;
 
 import com.wardrobe.common.auth.AuthContextFilter;
 import org.springframework.context.annotation.Bean;

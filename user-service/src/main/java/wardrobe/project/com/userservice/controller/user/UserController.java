@@ -16,12 +16,8 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
-    public UserResponse getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
-        System.out.println("JWT CLAIMS = " + jwt.getClaims());
-        System.out.println("JWT EMAIL = " + jwt.getClaimAsString("email"));
-        System.out.println("JWT SUB = " + jwt.getSubject());
-
-        return userService.syncCurrentUser(jwt);
+    public UserResponse getCurrentUser() {
+        return userService.syncCurrentUser();
     }
 
 }

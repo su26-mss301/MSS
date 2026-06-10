@@ -7,6 +7,7 @@ public final class AuthHeaderNames {
 
     public static final String ACTOR_TYPE = "X-Auth-Actor-Type";
     public static final String USER_ID = "X-Auth-User-Id";
+    public static final String USER_EMAIL = "X-Auth-User-Email";
     public static final String DEVICE_ID = "X-Auth-Device-Id";
     public static final String ROLE = "X-Auth-Role";
     public static final String GROUPS = "X-Auth-Groups";

@@ -3,9 +3,17 @@ package wardrobe.project.com.userservice.service.auth.Impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
+import wardrobe.project.com.userservice.config.CognitoProperties;
+import wardrobe.project.com.userservice.dto.request.auth.RegisterRequest;
 import wardrobe.project.com.userservice.dto.response.auth.CognitoLoginResponse;
+import wardrobe.project.com.userservice.dto.response.user.UserResponse;
+import wardrobe.project.com.userservice.entity.User;
+import wardrobe.project.com.userservice.enums.UserStatus;
+import wardrobe.project.com.userservice.mapper.UserMapper;
+import wardrobe.project.com.userservice.repository.UserRepository;
 import wardrobe.project.com.userservice.service.auth.CognitoAuthService;
 
 import java.util.Map;
@@ -15,6 +23,9 @@ import java.util.Map;
 public class CognitoAuthServiceImpl implements CognitoAuthService {
 
     private final CognitoIdentityProviderClient cognitoClient;
+    private final CognitoProperties cognitoProperties;
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
     @Value("${aws.cognito.client-id}")
     private String clientId;
@@ -44,21 +55,24 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
     }
 
     @Override
-    public void register(String email, String password) {
-        SignUpRequest request = SignUpRequest.builder()
-                .clientId(clientId)
-                .username(email)
-                .password(password)
-                .userAttributes(
-                        AttributeType.builder()
-                                .name("email")
-                                .value(email)
-                                .build()
-                )
+    @Transactional
+    public UserResponse register(RegisterRequest request) {
+        String cognitoSub = registerAndAddDefaultGroup(
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        User user = User.builder()
+                .userId(cognitoSub)
+                .email(request.getEmail())
+                .status(UserStatus.ACTIVE)
                 .build();
 
-        cognitoClient.signUp(request);
+        User savedUser = userRepository.save(user);
+
+        return userMapper.toUserResponse(savedUser);
     }
+
 
     @Override
     public void confirmRegister(String email, String otp) {
@@ -90,5 +104,30 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
                         .build();
 
         cognitoClient.resendConfirmationCode(request);
+    }
+
+    @Override
+    public String registerAndAddDefaultGroup(String email, String password) {
+        SignUpResponse signUpResponse = cognitoClient.signUp(SignUpRequest.builder()
+                .clientId(cognitoProperties.getClientId())
+                .username(email)
+                .password(password)
+                .userAttributes(
+                        AttributeType.builder()
+                                .name("email")
+                                .value(email)
+                                .build()
+                )
+                .build());
+
+        String cognitoSub = signUpResponse.userSub();
+
+        cognitoClient.adminAddUserToGroup(AdminAddUserToGroupRequest.builder()
+                .userPoolId(cognitoProperties.getUserPoolId())
+                .username(email)
+                .groupName(cognitoProperties.getDefaultGroup())
+                .build());
+
+        return cognitoSub;
     }
 }
