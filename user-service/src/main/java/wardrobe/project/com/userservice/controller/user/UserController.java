@@ -9,7 +9,7 @@ import wardrobe.project.com.userservice.service.user.UserService;
 
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping()
 @RequiredArgsConstructor
 public class UserController {
 
