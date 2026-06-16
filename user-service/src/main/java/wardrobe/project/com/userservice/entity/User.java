@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import wardrobe.project.com.userservice.enums.Role;
 import wardrobe.project.com.userservice.enums.UserStatus;
 
 import java.time.LocalDateTime;
@@ -49,6 +50,9 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     @Override
     protected void onCreate() {
