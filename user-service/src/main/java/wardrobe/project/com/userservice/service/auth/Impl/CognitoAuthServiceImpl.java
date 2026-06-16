@@ -11,6 +11,7 @@ import wardrobe.project.com.userservice.dto.request.auth.RegisterRequest;
 import wardrobe.project.com.userservice.dto.response.auth.CognitoLoginResponse;
 import wardrobe.project.com.userservice.dto.response.user.UserResponse;
 import wardrobe.project.com.userservice.entity.User;
+import wardrobe.project.com.userservice.enums.Role;
 import wardrobe.project.com.userservice.enums.UserStatus;
 import wardrobe.project.com.userservice.mapper.UserMapper;
 import wardrobe.project.com.userservice.repository.UserRepository;
@@ -66,6 +67,7 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
                 .userId(cognitoSub)
                 .email(request.getEmail())
                 .status(UserStatus.ACTIVE)
+                .role(Role.ROLE_USER)
                 .build();
 
         User savedUser = userRepository.save(user);
