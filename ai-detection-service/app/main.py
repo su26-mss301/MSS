@@ -1,10 +1,15 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends
 from dotenv import load_dotenv
 import py_eureka_client.eureka_client as eureka_client
 import os
 
 from app.detector import predict_image
+
+from app.auth_context import (
+    CurrentUser,
+    get_current_user
+)
 
 load_dotenv()
 
@@ -69,7 +74,10 @@ def health():
 
 
 @app.post("/detect")
-async def detect(file: UploadFile = File(...)):
+async def detect(
+        file: UploadFile = File(...),
+        current_user: CurrentUser = Depends(get_current_user)
+):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     content = await file.read()
@@ -81,5 +89,8 @@ async def detect(file: UploadFile = File(...)):
 
     return {
         "success": True,
+        "userId": current_user.user_id,
+        "email": current_user.email,
+        "role": current_user.role,
         "detections": detections
     }
