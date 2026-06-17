@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import wardrobe.project.com.userservice.dto.response.auth.LoginResponse;
 import wardrobe.project.com.userservice.dto.response.user.UserResponse;
 import wardrobe.project.com.userservice.entity.User;
 import wardrobe.project.com.userservice.enums.UserStatus;
@@ -40,5 +41,12 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         return userMapper.toUserResponse(savedUser);
+    }
+
+    @Override
+    public LoginResponse getCurrentUserByEmail(String email) {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+        return userMapper.toLoginResponse(user);
     }
 }

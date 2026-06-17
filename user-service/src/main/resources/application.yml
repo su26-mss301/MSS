@@ -4,8 +4,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5435/user_service_db
-    username: postgres
-    password: 123456
+    username: admin
+    password: admin123
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -44,3 +44,15 @@ aws:
     client-id: ${AWS_CLIENT_ID}
     user-pool-id: ${AWS_USER_POOL_ID}
     default-group: ROLE_USER
+
+
+app:
+  cookie:
+    secure: false
+    same-site: Lax
+  auth:
+    refresh-token-cookie-max-age-days: 8
+    id-token-cookie-max-age-minutes: 20
+    access-token-cookie-max-age-minutes: 20
+
+
