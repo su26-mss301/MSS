@@ -3,8 +3,8 @@ spring:
     name: storage-service
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/storage_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    username: postgres
+    password: 123456
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,10 +21,13 @@ server:
 
 eureka:
   client:
-    register-with-eureka: false
-    fetch-registry: false
     service-url:
       defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+    ip-address: 127.0.0.1
+    hostname: localhost
+    instance-id: ${spring.application.name}:${server.port}
 
 aws:
   s3:

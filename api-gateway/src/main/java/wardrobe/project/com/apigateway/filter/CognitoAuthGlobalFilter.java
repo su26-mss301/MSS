@@ -137,7 +137,7 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
             );
         }
 
-        if (!cognitoProperties.getAppClientId().equals(clientId)) {
+        if (!cognitoProperties.getClientId().equals(clientId)) {
             return writeError(
                     exchange,
                     HttpStatus.UNAUTHORIZED,
@@ -174,7 +174,7 @@ public class CognitoAuthGlobalFilter implements GlobalFilter, Ordered {
                 );
             }
 
-            if (!cognitoProperties.getAppClientId().equals(idAudience)) {
+            if (!cognitoProperties.getClientId().equals(idAudience)) {
                 return writeError(
                         exchange,
                         HttpStatus.UNAUTHORIZED,
