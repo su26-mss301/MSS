@@ -13,4 +13,6 @@ public interface CognitoAuthService {
     void resendCode(String email);
 
     String registerAndAddDefaultGroup(String email, String password);
+
+    CognitoLoginResponse refresh(String refreshToken);
 }

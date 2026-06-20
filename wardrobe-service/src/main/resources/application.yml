@@ -3,8 +3,8 @@ spring:
     name: wardrobe-service
   datasource:
     url: jdbc:postgresql://localhost:5434/wardrobe_service_db
-    username: postgres
-    password: 123456
+    username: admin
+    password: admin123
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
