@@ -22,9 +22,9 @@ public class WardrobeServiceImpl implements WardrobeService {
     private final WardrobeRepository wardrobeRepository;
 
     @Override
-    public WardrobeResponseDTO createWardrobe(WardrobeCreateRequestDTO request) {
+    public WardrobeResponseDTO createWardrobe(UUID userId, WardrobeCreateRequestDTO request) {
         Wardrobe wardrobe = Wardrobe.builder()
-                .userId(request.getUserId())
+                .userId(userId)
                 .wardrobeName(request.getWardrobeName())
                 .build();
         Wardrobe savedWardrobe = wardrobeRepository.save(wardrobe);

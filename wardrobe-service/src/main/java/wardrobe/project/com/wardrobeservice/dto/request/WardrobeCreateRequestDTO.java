@@ -16,9 +16,6 @@ import java.util.UUID;
 @AllArgsConstructor
 public class WardrobeCreateRequestDTO {
 
-    @NotNull(message = "USER_ID_BLANK")
-    private UUID userId;
-
     @NotBlank(message = "WARDROBE_NAME_BLANK")
     @Size(max = 100, message = "WARDROBE_NAME_SIZE")
     private String wardrobeName;
