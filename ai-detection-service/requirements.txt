@@ -8,3 +8,5 @@ opencv-python
 pillow
 python-dotenv
 py-eureka-client
+webcolors
+scikit-learn
