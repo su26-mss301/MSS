@@ -26,11 +26,14 @@ public class WardrobeController {
 
     @PostMapping
     @Operation(summary = "Create a new wardrobe")
-    public ResponseEntity<ApiResponse<WardrobeResponseDTO>> createWardrobe(@Valid @RequestBody WardrobeCreateRequestDTO request) {
+    public ResponseEntity<ApiResponse<WardrobeResponseDTO>> createWardrobe(
+            @RequestHeader("X-Auth-User-Id") String userIdStr,
+            @Valid @RequestBody WardrobeCreateRequestDTO request) {
+        UUID userId = UUID.fromString(userIdStr);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.<WardrobeResponseDTO>builder()
                 .success(true)
                 .message("Wardrobe created successfully")
-                .data(wardrobeService.createWardrobe(request))
+                .data(wardrobeService.createWardrobe(userId, request))
                 .build());
     }
 

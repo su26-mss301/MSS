@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/storage")
-@CrossOrigin("*") // Cho phép Frontend gọi trực tiếp
 @RequiredArgsConstructor
 @Slf4j
 public class StorageController {
@@ -99,6 +98,23 @@ public class StorageController {
             return ResponseEntity.ok(responses);
         } catch (Exception e) {
             log.error("Error occurred while listing images: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    
+    // GET /api/v1/storage/files/{id} - Redirects to presigned URL
+    @GetMapping("/files/{id}")
+    public ResponseEntity<Void> redirectToFile(@PathVariable("id") UUID id) {
+        log.info("Redirecting to image URL for ID: {}", id);
+        try {
+            String url = storageService.getImageUrl(id);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header("Location", url)
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

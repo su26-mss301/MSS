@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface WardrobeService {
-    WardrobeResponseDTO createWardrobe(WardrobeCreateRequestDTO request);
+    WardrobeResponseDTO createWardrobe(UUID userId, WardrobeCreateRequestDTO request);
     WardrobeResponseDTO getWardrobeById(UUID id);
     List<WardrobeResponseDTO> getAllWardrobes();
     List<WardrobeResponseDTO> getWardrobesByUserId(UUID userId);
