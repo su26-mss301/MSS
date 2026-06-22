@@ -94,6 +94,7 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
                         .build();
 
         cognitoClient.adminAddUserToGroup(addToGroupRequest);
+
     }
 
     @Override
@@ -129,6 +130,8 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
                 .username(email)
                 .groupName(cognitoProperties.getDefaultGroup())
                 .build());
+
+
 
         return cognitoSub;
     }
