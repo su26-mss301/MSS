@@ -157,11 +157,9 @@ public class StorageController {
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/url/{id}")
     public ResponseEntity<?> getImageUrl(
-            @PathVariable UUID id,
-            jakarta.servlet.http.HttpServletRequest request) {
+            @PathVariable UUID id) {
         try {
-            String userId = extractUserId(request);
-            String url = storageService.getImageUrl(id, userId);
+            String url = storageService.getImageUrl(id);
             return ResponseEntity.ok(url);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(e.getMessage().contains("permission") ? HttpStatus.FORBIDDEN : HttpStatus.UNAUTHORIZED)
@@ -176,7 +174,7 @@ public class StorageController {
     // Internal mapper
     // ─────────────────────────────────────────────────────────────────────────
 
-    
+
     // GET /api/v1/storage/files/{id} - Redirects to presigned URL
     @GetMapping("/files/{id}")
     public ResponseEntity<Void> redirectToFile(@PathVariable("id") UUID id) {

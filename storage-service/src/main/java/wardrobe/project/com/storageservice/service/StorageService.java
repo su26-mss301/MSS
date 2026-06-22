@@ -19,7 +19,7 @@ public interface StorageService {
     Image getImageInfo(UUID id, String userId);
 
     /** Lấy presigned URL của ảnh (chỉ đúng owner) */
-    String getImageUrl(UUID id, String userId) throws Exception;
+    String getImageUrl(UUID id) throws Exception;
 
     /** Xóa ảnh DONE khỏi S3 + DB (chỉ đúng owner, không xóa DETECTING) */
     void deleteImage(UUID id, String userId) throws Exception;

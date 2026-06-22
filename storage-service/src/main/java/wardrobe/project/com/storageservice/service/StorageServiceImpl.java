@@ -1,5 +1,7 @@
 package wardrobe.project.com.storageservice.service;
 
+import com.wardrobe.common.auth.AuthContext;
+import com.wardrobe.common.auth.AuthContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -132,8 +134,10 @@ public class StorageServiceImpl implements StorageService {
 
     @Override
     @Transactional(readOnly = true)
-    public String getImageUrl(UUID id, String userId) throws Exception {
-        Image image = findOwnedImage(id, userId);
+    public String getImageUrl(UUID id) throws Exception {
+        AuthContext authContext = AuthContextHolder.get();
+        String cognitoSub = authContext.requireUserId();
+        Image image = findOwnedImage(id,cognitoSub);
         return generatePresignedUrl(image.getImageUrl());
     }
 
