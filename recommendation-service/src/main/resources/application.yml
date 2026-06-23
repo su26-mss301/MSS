@@ -3,9 +3,9 @@ spring:
     name: recommendation-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/recommendation_db
+    url: jdbc:postgresql://localhost:5436/recommendation_db
     username: postgres
-    password: 123456
+    password: password
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,7 +20,8 @@ spring:
 server:
   port: 8083
   servlet:
-    context-path: /api/v1
+    context-path: /api
+
 eureka:
   client:
     service-url:

@@ -17,13 +17,17 @@ import wardrobe.project.com.recommendationservice.engine.OutfitGenerator;
 import wardrobe.project.com.recommendationservice.engine.RecommendationEngine;
 import wardrobe.project.com.recommendationservice.entity.Event;
 import wardrobe.project.com.recommendationservice.entity.Outfit;
+import wardrobe.project.com.recommendationservice.entity.OutfitItem;
 import wardrobe.project.com.recommendationservice.entity.RecommendItem;
 import wardrobe.project.com.recommendationservice.repository.EventRepository;
+import wardrobe.project.com.recommendationservice.repository.OutfitItemRepository;
 import wardrobe.project.com.recommendationservice.repository.OutfitRepository;
 import wardrobe.project.com.recommendationservice.repository.RecommendItemRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +37,7 @@ public class RecommendationServiceImpl {
     private final RecommendationEngine engine;
     private final OutfitGenerator outfitGenerator;
     private final OutfitRepository outfitRepository;
+    private final OutfitItemRepository outfitItemRepository;
     private final RecommendItemRepository recommendItemRepository;
     private final EventRepository eventRepository;
     private final RestTemplate restTemplate;
@@ -42,7 +47,12 @@ public class RecommendationServiceImpl {
 
     private UserProfileExternalDTO fetchUserProfile(UUID userId) {
         String url = USER_SERVICE_URL + "/" + userId + "/profile";
-        return restTemplate.getForObject(url, UserProfileExternalDTO.class);
+        try {
+            return restTemplate.getForObject(url, UserProfileExternalDTO.class);
+        } catch (Exception e) {
+            log.error("Lỗi khi gọi User Service: ", e);
+            throw new RuntimeException("Không thể lấy thông tin User Profile.");
+        }
     }
 
     private List<ClothingItemExternalDTO> fetchUserWardrobe(UUID userId) {
@@ -57,9 +67,24 @@ public class RecommendationServiceImpl {
             }
             return List.of();
         } catch (Exception e) {
-            log.error("Error connecting to Wardrobe Service: ", e);
-            throw new RuntimeException("Không thể kết nối danh mục tủ đồ.");
+            log.error("Lỗi khi gọi Wardrobe Service: ", e);
+            throw new RuntimeException("Không thể kết nối danh mục tủ đồ thật.");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationResponseDTO getById(UUID id) {
+        RecommendItem item = recommendItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ghi gợi ý với ID: " + id));
+        return mapToResponse(item);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RecommendationResponseDTO> getAllByUserId(UUID userId) {
+        List<RecommendItem> items = recommendItemRepository.findAll().stream()
+                .filter(i -> i.getUserId().equals(userId))
+                .collect(Collectors.toList());
+        return items.stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Transactional
@@ -70,7 +95,8 @@ public class RecommendationServiceImpl {
         List<ClothingItemExternalDTO> rankedItems = engine.rankByContentBased(wardrobe, profile);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 8.5f, "Gợi ý theo sở thích");
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 8.5f,
+                "Phong Cách Cá Nhân", "Trang phục dựa trên sở thích cá nhân của bạn.");
         return mapToResponse(entity);
     }
 
@@ -82,7 +108,8 @@ public class RecommendationServiceImpl {
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(filteredItems);
         Event event = eventRepository.findByEventType(eventType).orElse(null);
 
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, 9.0f, "Gợi ý đi " + eventType);
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, 9.2f,
+                "Sự Kiện " + eventType, "Lựa chọn tối ưu dành cho dịp " + eventType);
         return mapToResponse(entity);
     }
 
@@ -94,32 +121,66 @@ public class RecommendationServiceImpl {
         List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 7.8f, "Gợi ý theo nhóm bạn");
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 7.8f,
+                "Xu Hướng Nhóm", "Gợi ý thịnh hành từ các thành viên trong nhóm bạn.");
         return mapToResponse(entity);
     }
 
-    private RecommendItem saveRecommendation(UUID userId, List<ClothingItemExternalDTO> items, Event event, float score, String name) {
+    private RecommendItem saveRecommendation(UUID userId, List<ClothingItemExternalDTO> items, Event event,
+                                             float score, String name, String description) {
         if (items == null || items.isEmpty()) {
-            throw new RuntimeException("Không đủ quần áo phù hợp!");
+            throw new RuntimeException("Không đủ quần áo phù hợp! Vui lòng thêm đồ vào tủ.");
         }
+
         Outfit outfit = new Outfit();
         outfit.setOutfitName(name);
+        outfit.setDescription(description);
         outfit = outfitRepository.save(outfit);
+
+        // ĐÃ SỬA: Lấy ID bằng getItemId() cho khớp với thuộc tính trong ClothingItemExternalDTO
+        for (ClothingItemExternalDTO itemDto : items) {
+            OutfitItem outfitItem = new OutfitItem();
+            outfitItem.setOutfit(outfit);
+            outfitItem.setItemId(itemDto.getItemId());
+            outfitItemRepository.save(outfitItem);
+        }
 
         RecommendItem rec = new RecommendItem();
         rec.setUserId(userId);
         rec.setOutfit(outfit);
         rec.setEvent(event);
         rec.setRecommendationScore(score);
+
         return recommendItemRepository.save(rec);
     }
 
-    // Hàm chuyển đổi Entity sang DTO an toàn
     private RecommendationResponseDTO mapToResponse(RecommendItem item) {
+        List<OutfitItem> outfitItems = outfitItemRepository.findByOutfit(item.getOutfit());
+        int realItemCount = (outfitItems != null) ? outfitItems.size() : 0;
+
+        List<String> realTags = new ArrayList<>();
+        if (item.getEvent() != null && item.getEvent().getEventType() != null) {
+            realTags.add(item.getEvent().getEventType());
+        } else {
+            realTags.add("Cá nhân hóa");
+        }
+
+        List<String> realSources = new ArrayList<>();
+        if (item.getEvent() != null) {
+            realSources.add("event");
+        } else if (item.getOutfit().getOutfitName().toLowerCase().contains("nhóm")) {
+            realSources.add("friendGroup");
+        } else {
+            realSources.add("preferences");
+        }
+
         OutfitResponseDTO outfitDTO = OutfitResponseDTO.builder()
                 .outfitId(item.getOutfit().getId())
                 .outfitName(item.getOutfit().getOutfitName())
                 .description(item.getOutfit().getDescription())
+                .img(null)
+                .items(realItemCount)
+                .tags(realTags)
                 .build();
 
         return RecommendationResponseDTO.builder()
@@ -128,6 +189,7 @@ public class RecommendationServiceImpl {
                 .outfit(outfitDTO)
                 .recommendationScore(item.getRecommendationScore())
                 .eventType(item.getEvent() != null ? item.getEvent().getEventType() : "General")
+                .sources(realSources)
                 .build();
     }
 }

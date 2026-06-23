@@ -2,6 +2,8 @@ package wardrobe.project.com.recommendationservice.engine;
 
 import org.springframework.stereotype.Component;
 import wardrobe.project.com.recommendationservice.dto.external.ClothingItemExternalDTO;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,9 +26,12 @@ public class OutfitGenerator {
                         (item.getItemName().toLowerCase().contains("shoes") || item.getItemName().toLowerCase().contains("giày")))
                 .findFirst();
 
+        List<ClothingItemExternalDTO> outfit = new ArrayList<>();
         if (bestTop.isPresent() && bestBottom.isPresent()) {
-            return List.of(bestTop.get(), bestBottom.get(), bestShoes.orElse(null));
+            outfit.add(bestTop.get());
+            outfit.add(bestBottom.get());
+            bestShoes.ifPresent(outfit::add);
         }
-        return List.of();
+        return outfit;
     }
 }
