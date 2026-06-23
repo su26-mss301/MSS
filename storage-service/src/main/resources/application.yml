@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/storage_db}
     username: postgres
-    password: 123456
+    password: postgres
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -36,3 +36,11 @@ aws:
     access-key: ${AWS_ACCESS_KEY_ID:minioadmin}
     secret-key: ${AWS_SECRET_ACCESS_KEY:minioadmin}
     bucket-name: ${AWS_S3_BUCKET:wardrobe-images}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+storage:
+  cleanup:
+    detecting-ttl-minutes: ${DETECTING_TTL_MINUTES:30}   # Xóa ảnh DETECTING sau N phút
+    scheduler-interval-ms: ${CLEANUP_INTERVAL_MS:300000} # Chạy scheduler mỗi N ms (default: 5 phút)

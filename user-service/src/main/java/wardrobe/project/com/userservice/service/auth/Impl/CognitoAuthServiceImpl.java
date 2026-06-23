@@ -94,6 +94,7 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
                         .build();
 
         cognitoClient.adminAddUserToGroup(addToGroupRequest);
+
     }
 
     @Override
@@ -130,6 +131,28 @@ public class CognitoAuthServiceImpl implements CognitoAuthService {
                 .groupName(cognitoProperties.getDefaultGroup())
                 .build());
 
+
+
         return cognitoSub;
+    }
+
+    @Override
+    public CognitoLoginResponse refresh(String refreshToken) {
+        InitiateAuthRequest request = InitiateAuthRequest.builder()
+                .authFlow(AuthFlowType.REFRESH_TOKEN_AUTH)
+                .clientId(clientId)
+                .authParameters(Map.of(
+                        "REFRESH_TOKEN", refreshToken
+                ))
+                .build();
+
+        var response = cognitoClient.initiateAuth(request);
+        var result = response.authenticationResult();
+
+        return new CognitoLoginResponse(
+                result.accessToken(),
+                result.idToken(),
+                refreshToken
+        );
     }
 }

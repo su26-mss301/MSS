@@ -1,5 +1,7 @@
 package wardrobe.project.com.storageservice.service;
 
+import com.wardrobe.common.auth.AuthContext;
+import com.wardrobe.common.auth.AuthContextHolder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +14,9 @@ import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import wardrobe.project.com.storageservice.dto.ImageResponse;
 import wardrobe.project.com.storageservice.model.Image;
+import wardrobe.project.com.storageservice.model.ImageStatus;
 import wardrobe.project.com.storageservice.repository.ImageRepository;
 
 import java.io.InputStream;
@@ -39,9 +43,13 @@ public class StorageServiceImpl implements StorageService {
     @Value("${aws.s3.endpoint:}")
     private String endpoint;
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Upload
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Override
     @Transactional
-    public Image uploadImage(MultipartFile file) throws Exception {
+    public Image uploadImage(MultipartFile file, String userId) throws Exception {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Cannot upload empty file");
         }
@@ -59,99 +67,159 @@ public class StorageServiceImpl implements StorageService {
         if (originalFilename != null && originalFilename.contains(".")) {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
-        
-        // Generate unique object name
-        String objectName = UUID.randomUUID().toString() + extension;
+        String objectKey = UUID.randomUUID() + extension;
 
         // Upload to S3
         try (InputStream inputStream = file.getInputStream()) {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(objectName)
-                    .contentType(file.getContentType())
-                    .build();
-            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, file.getSize()));
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(objectKey)
+                            .contentType(file.getContentType())
+                            .build(),
+                    RequestBody.fromInputStream(inputStream, file.getSize())
+            );
         }
 
-        // Construct public URL
+        // Build public URL (stored in DB — presigned URL generated on read)
         String imageUrl;
         if (endpoint != null && !endpoint.isBlank()) {
-            imageUrl = endpoint + "/" + bucketName + "/" + objectName;
+            imageUrl = endpoint + "/" + bucketName + "/" + objectKey;
         } else {
-            imageUrl = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + objectName;
+            imageUrl = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + objectKey;
         }
 
-        // Save metadata to database
+        // Save metadata with status=DETECTING
         Image image = Image.builder()
-                .fileName(originalFilename != null ? originalFilename : objectName)
+                .fileName(originalFilename != null ? originalFilename : objectKey)
                 .imageUrl(imageUrl)
                 .fileSize(file.getSize())
+                .userId(userId)
+                .status(ImageStatus.DETECTING)
                 .uploadedAt(LocalDateTime.now())
                 .build();
 
-        Image savedImage = imageRepository.save(image);
-        log.info("Successfully uploaded image {} with ID {}", originalFilename, savedImage.getImageId());
-        return savedImage;
+        Image saved = imageRepository.save(image);
+        log.info("Uploaded image id={} for user={} with status=DETECTING", saved.getImageId(), userId);
+        return saved;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Confirm
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public ImageResponse confirmImage(UUID id, String userId) {
+        Image image = findOwnedImage(id, userId);
+        if (image.getStatus() == ImageStatus.DONE) {
+            log.warn("Image id={} is already DONE", id);
+            return mapToResponse(image);
+        }
+        image.setStatus(ImageStatus.DONE);
+        imageRepository.save(image);
+        log.info("Confirmed image id={} for user={}", id, userId);
+        return mapToResponse(image);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Read
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
-    public Image getImageInfo(UUID id) {
-        return imageRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Image not found with ID: " + id));
+    public Image getImageInfo(UUID id, String userId) {
+        return findOwnedImage(id, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public String getImageUrl(UUID id) throws Exception {
-        Image image = getImageInfo(id);
+        AuthContext authContext = AuthContextHolder.get();
+        String cognitoSub = authContext.requireUserId();
+        Image image = findOwnedImage(id,cognitoSub);
         return generatePresignedUrl(image.getImageUrl());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Image> getImagesByUser(String userId) {
+        return imageRepository.findByUserIdAndStatus(userId, ImageStatus.DONE);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Delete
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void deleteImage(UUID id, String userId) throws Exception {
+        Image image = findOwnedImage(id, userId);
+
+        if (image.getStatus() == ImageStatus.DETECTING) {
+            throw new IllegalStateException("Cannot manually delete an image in DETECTING status. It will be cleaned up automatically.");
+        }
+
+        String objectKey = image.getImageUrl().substring(image.getImageUrl().lastIndexOf("/") + 1);
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(objectKey)
+                .build());
+
+        imageRepository.delete(image);
+        log.info("Deleted image id={} by user={}", id, userId);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Presigned URL
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public String generatePresignedUrl(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) return imageUrl;
         try {
-            String objectName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-
-            // Generate presigned URL for 7 days
-            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                    .signatureDuration(Duration.ofDays(7))
-                    .getObjectRequest(GetObjectRequest.builder()
-                            .bucket(bucketName)
-                            .key(objectName)
-                            .build())
-                    .build();
-            
-            PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
-            return presignedRequest.url().toString();
+            String objectKey = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+            PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(
+                    GetObjectPresignRequest.builder()
+                            .signatureDuration(Duration.ofDays(7))
+                            .getObjectRequest(GetObjectRequest.builder()
+                                    .bucket(bucketName)
+                                    .key(objectKey)
+                                    .build())
+                            .build()
+            );
+            return presigned.url().toString();
         } catch (Exception e) {
             log.error("Error generating presigned URL for {}: {}", imageUrl, e.getMessage());
             return imageUrl;
         }
     }
 
-    @Override
-    @Transactional
-    public void deleteImage(UUID id) throws Exception {
-        Image image = getImageInfo(id);
-        String imageUrl = image.getImageUrl();
-        String objectName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+    // ─────────────────────────────────────────────────────────────────────────
+    // Internal helpers
+    // ─────────────────────────────────────────────────────────────────────────
 
-        // Delete from S3
-        s3Client.deleteObject(DeleteObjectRequest.builder()
-                .bucket(bucketName)
-                .key(objectName)
-                .build());
-
-        // Delete from database
-        imageRepository.delete(image);
-        log.info("Successfully deleted image with ID: {}", id);
+    /** Tìm ảnh và xác minh quyền sở hữu, ném exception nếu không thấy hoặc không phải chủ */
+    private Image findOwnedImage(UUID id, String userId) {
+        return imageRepository.findByImageIdAndUserId(id, userId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Image not found or you do not have permission to access it"));
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Image> getAllImages() {
-        return imageRepository.findAll();
+    private ImageResponse mapToResponse(Image image) {
+        return ImageResponse.builder()
+                .id(image.getImageId())
+                .name(image.getFileName())
+                .url(generatePresignedUrl(image.getImageUrl()))
+                .size(toMegabytes(image.getFileSize()))
+                .status(image.getStatus())
+                .createdAt(image.getUploadedAt())
+                .build();
+    }
+
+    private Float toMegabytes(Long bytes) {
+        if (bytes == null || bytes <= 0) return 0f;
+        float mb = bytes / 1_048_576.0f;
+        return Math.round(mb * 10) / 10f;
     }
 }

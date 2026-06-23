@@ -28,6 +28,14 @@ public class Image {
     @Column(name = "file_size")
     private Long fileSize;
 
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @Builder.Default
+    private ImageStatus status = ImageStatus.DETECTING;
+
     @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedAt;
 }
