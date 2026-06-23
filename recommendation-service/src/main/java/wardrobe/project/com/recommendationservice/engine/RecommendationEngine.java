@@ -13,17 +13,21 @@ public class RecommendationEngine {
     public List<ClothingItemExternalDTO> rankByContentBased(List<ClothingItemExternalDTO> wardrobe, UserProfileExternalDTO profile) {
         Map<ClothingItemExternalDTO, Float> scoredItems = new HashMap<>();
         for (ClothingItemExternalDTO item : wardrobe) {
-            float score = 0.0f;
-            if (item.getStyle() != null && item.getStyle().equalsIgnoreCase(profile.getPreferredStyle())) {
+            float score = 1.0f;
+
+            if (profile.getPreferredStyle() != null && item.getStyle() != null &&
+                    item.getStyle().equalsIgnoreCase(profile.getPreferredStyle())) {
                 score += 5.0f;
             }
-            if (item.getDominantColor() != null && profile.getFavoriteColors().contains(item.getDominantColor())) {
+
+            if (profile.getFavoriteColors() != null && item.getDominantColor() != null &&
+                    profile.getFavoriteColors().contains(item.getDominantColor())) {
                 score += 3.0f;
             }
-            if (score > 0) {
-                scoredItems.put(item, score);
-            }
+
+            scoredItems.put(item, score);
         }
+
         return scoredItems.entrySet().stream()
                 .sorted((e1, e2) -> Float.compare(e2.getValue(), e1.getValue()))
                 .map(Map.Entry::getKey)
@@ -51,12 +55,14 @@ public class RecommendationEngine {
     public List<ClothingItemExternalDTO> rankByCollaborative(List<ClothingItemExternalDTO> wardrobe, List<String> trendingStyles) {
         Map<ClothingItemExternalDTO, Float> scoredItems = new HashMap<>();
         for (ClothingItemExternalDTO item : wardrobe) {
-            float score = 0.0f;
-            if (trendingStyles.contains(item.getStyle())) {
+            float score = 1.0f;
+
+            if (item.getStyle() != null && trendingStyles.contains(item.getStyle())) {
                 score += 4.0f;
             }
             scoredItems.put(item, score);
         }
+
         return scoredItems.entrySet().stream()
                 .sorted((e1, e2) -> Float.compare(e2.getValue(), e1.getValue()))
                 .map(Map.Entry::getKey)

@@ -12,7 +12,7 @@ public class AuthContextConfig {
     @Bean
     public AuthContextFilter authContextFilter() {
         return new AuthContextFilter(List.of(
-                "/recommendations/**"
+                "/api/v1/recommendation/**"
         ));
     }
 }
