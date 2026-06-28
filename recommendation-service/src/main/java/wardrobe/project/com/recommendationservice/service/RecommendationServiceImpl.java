@@ -32,6 +32,7 @@ import wardrobe.project.com.recommendationservice.repository.RecommendItemReposi
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,6 +51,33 @@ public class RecommendationServiceImpl {
 
     private static final String USER_SERVICE_URL = "http://user-service/api/v1/users";
     private static final String WARDROBE_API_BASE = "http://wardrobe-service/api/v1/wardrobe";
+
+    private float calculateRealScore(List<ClothingItemExternalDTO> outfit) {
+        if (outfit == null || outfit.isEmpty()) return 0f;
+        double avgScore = outfit.stream()
+                .mapToDouble(item -> item.getConfidenceScore() != null ? item.getConfidenceScore() : 0.85)
+                .average()
+                .orElse(0.85);
+        return (float) (avgScore * 10);
+    }
+
+    private String generateDynamicName(List<ClothingItemExternalDTO> outfit, String context) {
+        if (outfit == null || outfit.isEmpty()) return "Trang Phục " + context;
+        String mainStyle = outfit.stream()
+                .map(ClothingItemExternalDTO::getStyle)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("Đa Phong Cách");
+        return "Set Đồ " + mainStyle + " (" + context + ")";
+    }
+
+    private String generateDynamicDescription(List<ClothingItemExternalDTO> outfit) {
+        if (outfit == null || outfit.isEmpty()) return "Gợi ý tự động từ hệ thống AI.";
+        String itemDetails = outfit.stream()
+                .map(item -> item.getItemName() + " màu " + item.getDominantColor())
+                .collect(Collectors.joining(", "));
+        return "Bộ trang phục được phối từ các vật phẩm thực tế trong tủ của bạn bao gồm: " + itemDetails + ".";
+    }
 
     private HttpEntity<String> createForwardingHeaders() {
         HttpHeaders headers = new HttpHeaders();
@@ -71,17 +99,19 @@ public class RecommendationServiceImpl {
     }
 
     private UserProfileExternalDTO fetchUserProfile(UUID userId) {
-        String url = USER_SERVICE_URL + "/me";
         try {
-            restTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+            String url = "http://user-service/api/v1/users/me";
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                UserProfileExternalDTO profile = new UserProfileExternalDTO();
+                profile.setId(userId);
+                return profile;
+            }
         } catch (Exception e) {
-            log.warn("Cảnh báo khi xác thực user qua /me: {}", e.getMessage());
+            log.warn("Lấy Profile thất bại: {}", e.getMessage());
         }
-
         UserProfileExternalDTO fallbackProfile = new UserProfileExternalDTO();
         fallbackProfile.setId(userId);
-        fallbackProfile.setFavoriteColors(new ArrayList<>());
-        fallbackProfile.setPreferredStyle("");
         return fallbackProfile;
     }
 
@@ -89,34 +119,25 @@ public class RecommendationServiceImpl {
         List<ClothingItemExternalDTO> allItems = new ArrayList<>();
         try {
             HttpEntity<String> entity = createForwardingHeaders();
-
             String wardrobeUrl = "http://wardrobe-service/api/v1/wardrobe/wardrobes/user/" + userId;
+            ResponseEntity<JsonNode> wardrobeRes = restTemplate.exchange(wardrobeUrl, HttpMethod.GET, entity, JsonNode.class);
+            JsonNode wBody = wardrobeRes.getBody();
 
-            ResponseEntity<ApiResponse<List<JsonNode>>> wardrobeRes = restTemplate.exchange(
-                    wardrobeUrl, HttpMethod.GET, entity,
-                    new ParameterizedTypeReference<ApiResponse<List<JsonNode>>>() {}
-            );
-
-            if (wardrobeRes.getBody() != null && wardrobeRes.getBody().getData() != null) {
-                for (JsonNode wNode : wardrobeRes.getBody().getData()) {
+            if (wBody != null && wBody.hasNonNull("data")) {
+                for (JsonNode wNode : wBody.path("data")) {
                     String wardrobeId = wNode.path("wardrobeId").asText();
-
                     String zoneUrl = "http://wardrobe-service/api/v1/wardrobe/wardrobe-zones/wardrobe/" + wardrobeId;
-                    ResponseEntity<ApiResponse<List<JsonNode>>> zoneRes = restTemplate.exchange(
-                            zoneUrl, HttpMethod.GET, entity,
-                            new ParameterizedTypeReference<ApiResponse<List<JsonNode>>>() {}
-                    );
+                    ResponseEntity<JsonNode> zoneRes = restTemplate.exchange(zoneUrl, HttpMethod.GET, entity, JsonNode.class);
+                    JsonNode zBody = zoneRes.getBody();
 
-                    if (zoneRes.getBody() != null && zoneRes.getBody().getData() != null) {
-                        for (JsonNode zNode : zoneRes.getBody().getData()) {
+                    if (zBody != null && zBody.hasNonNull("data")) {
+                        for (JsonNode zNode : zBody.path("data")) {
                             String zoneId = zNode.path("zoneId").asText();
-
                             String itemUrl = "http://wardrobe-service/api/v1/wardrobe/clothing-items/zone/" + zoneId;
                             ResponseEntity<ApiResponse<List<ClothingItemExternalDTO>>> itemRes = restTemplate.exchange(
                                     itemUrl, HttpMethod.GET, entity,
                                     new ParameterizedTypeReference<ApiResponse<List<ClothingItemExternalDTO>>>() {}
                             );
-
                             if (itemRes.getBody() != null && itemRes.getBody().getData() != null) {
                                 allItems.addAll(itemRes.getBody().getData());
                             }
@@ -126,67 +147,87 @@ public class RecommendationServiceImpl {
             }
             return allItems;
         } catch (Exception e) {
-            log.error("Lỗi lấy dữ liệu từ wardrobe-service: ", e);
-            throw new RuntimeException("Không thể lấy dữ liệu từ Wardrobe Service"); // Ép buộc báo lỗi nếu gọi service thất bại
+            log.error("LỖI GỌI WARDROBE SERVICE: ", e);
+            return new ArrayList<>();
         }
+    }
+
+    private Event getOrCreateEvent(String eventType) {
+        return eventRepository.findByEventType(eventType).orElseGet(() -> {
+            Event newEvent = new Event();
+            newEvent.setEventType(eventType);
+            newEvent.setEventName(eventType);
+            return eventRepository.save(newEvent);
+        });
     }
 
     @Transactional(readOnly = true)
     public RecommendationResponseDTO getById(UUID id) {
         RecommendItem item = recommendItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản ghi gợi ý với ID: " + id));
-        return mapToResponse(item);
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy gợi ý với ID: " + id));
+        List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(item.getUserId());
+        return mapToResponse(item, wardrobe);
     }
 
     @Transactional(readOnly = true)
     public List<RecommendationResponseDTO> getAllByUserId(UUID userId) {
         List<RecommendItem> items = recommendItemRepository.findAll().stream()
-                .filter(i -> i.getUserId().equals(userId))
-                .collect(Collectors.toList());
-        return items.stream().map(this::mapToResponse).collect(Collectors.toList());
+                .filter(i -> i.getUserId().equals(userId)).collect(Collectors.toList());
+        List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
+        return items.stream().map(i -> mapToResponse(i, wardrobe)).collect(Collectors.toList());
     }
 
     @Transactional
     public RecommendationResponseDTO generateContentBased(UUID userId) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
+        if (wardrobe.isEmpty()) throw new RuntimeException("Không tìm thấy quần áo nào trong tủ!");
 
-        if (wardrobe.isEmpty()) {
-            log.error("Wardrobe trả về rỗng cho user {}", userId);
-            throw new RuntimeException("Không tìm thấy quần áo nào trong tủ của bạn!");
-        }
-
-        UserProfileExternalDTO profile = new UserProfileExternalDTO(); // Fallback
+        UserProfileExternalDTO profile = fetchUserProfile(userId);
         List<ClothingItemExternalDTO> rankedItems = engine.rankByContentBased(wardrobe, profile);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 8.5f, "Cá Nhân", "...");
-        return mapToResponse(entity);
+        float realScore = calculateRealScore(finalOutfit);
+        String realName = generateDynamicName(finalOutfit, "Cá Nhân");
+        String realDesc = generateDynamicDescription(finalOutfit);
+
+        Event event = getOrCreateEvent("Casual");
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, realScore, realName, realDesc);
+        return mapToResponse(entity, wardrobe);
     }
 
     @Transactional
     public RecommendationResponseDTO generateEventBased(UUID userId, String eventType) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
+        if (wardrobe.isEmpty()) throw new RuntimeException("Không tìm thấy quần áo nào trong tủ!");
 
         List<ClothingItemExternalDTO> filteredItems = engine.filterByEvent(wardrobe, eventType);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(filteredItems);
-        Event event = eventRepository.findByEventType(eventType).orElse(null);
 
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, 9.2f,
-                "Sự Kiện " + eventType, "Lựa chọn tối ưu dành cho dịp " + eventType);
-        return mapToResponse(entity);
+        float realScore = calculateRealScore(finalOutfit);
+        String realName = generateDynamicName(finalOutfit, eventType);
+        String realDesc = generateDynamicDescription(finalOutfit);
+
+        Event event = getOrCreateEvent(eventType);
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, realScore, realName, realDesc);
+        return mapToResponse(entity, wardrobe);
     }
 
     @Transactional
     public RecommendationResponseDTO generateCollaborative(UUID userId, UUID groupId) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
-        List<String> trendingStyles = List.of("Formal", "Casual");
+        if (wardrobe.isEmpty()) throw new RuntimeException("Không tìm thấy quần áo nào trong tủ!");
 
+        List<String> trendingStyles = List.of("Formal", "Casual");
         List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, null, 7.8f,
-                "Xu Hướng Nhóm", "Gợi ý thịnh hành từ các thành viên trong nhóm bạn.");
-        return mapToResponse(entity);
+        float realScore = calculateRealScore(finalOutfit);
+        String realName = generateDynamicName(finalOutfit, "Nhóm Bạn");
+        String realDesc = generateDynamicDescription(finalOutfit);
+
+        Event event = getOrCreateEvent("Party");
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, realScore, realName, realDesc);
+        return mapToResponse(entity, wardrobe);
     }
 
     private RecommendItem saveRecommendation(UUID userId, List<ClothingItemExternalDTO> items, Event event, float score, String name, String description) {
@@ -194,12 +235,14 @@ public class RecommendationServiceImpl {
         outfit.setOutfitName(name);
         outfit.setDescription(description);
         outfit = outfitRepository.save(outfit);
+
         for (ClothingItemExternalDTO itemDto : items) {
             OutfitItem outfitItem = new OutfitItem();
             outfitItem.setOutfit(outfit);
             outfitItem.setItemId(itemDto.getItemId());
             outfitItemRepository.save(outfitItem);
         }
+
         RecommendItem rec = new RecommendItem();
         rec.setUserId(userId);
         rec.setOutfit(outfit);
@@ -208,33 +251,35 @@ public class RecommendationServiceImpl {
         return recommendItemRepository.save(rec);
     }
 
-    private RecommendationResponseDTO mapToResponse(RecommendItem item) {
+    private RecommendationResponseDTO mapToResponse(RecommendItem item, List<ClothingItemExternalDTO> availableItems) {
         List<OutfitItem> outfitItems = outfitItemRepository.findByOutfit(item.getOutfit());
-        int realItemCount = (outfitItems != null) ? outfitItems.size() : 0;
+        List<ClothingItemExternalDTO> realClothingDetails = new ArrayList<>();
+        if (outfitItems != null && availableItems != null) {
+            for (OutfitItem oi : outfitItems) {
+                availableItems.stream()
+                        .filter(c -> c.getItemId().equals(oi.getItemId()))
+                        .findFirst()
+                        .ifPresent(realClothingDetails::add);
+            }
+        }
 
         List<String> realTags = new ArrayList<>();
         if (item.getEvent() != null && item.getEvent().getEventType() != null) {
             realTags.add(item.getEvent().getEventType());
-        } else {
-            realTags.add("Cá nhân hóa");
         }
 
         List<String> realSources = new ArrayList<>();
-        if (item.getEvent() != null) {
-            realSources.add("event");
-        } else if (item.getOutfit().getOutfitName().toLowerCase().contains("nhóm")) {
-            realSources.add("friendGroup");
-        } else {
-            realSources.add("preferences");
-        }
+        if (item.getEvent() != null) realSources.add("event");
+        else realSources.add("preferences");
 
         OutfitResponseDTO outfitDTO = OutfitResponseDTO.builder()
                 .outfitId(item.getOutfit().getId())
                 .outfitName(item.getOutfit().getOutfitName())
                 .description(item.getOutfit().getDescription())
                 .img(null)
-                .items(realItemCount)
+                .items(realClothingDetails.size())
                 .tags(realTags)
+                .clothingItems(realClothingDetails)
                 .build();
 
         return RecommendationResponseDTO.builder()

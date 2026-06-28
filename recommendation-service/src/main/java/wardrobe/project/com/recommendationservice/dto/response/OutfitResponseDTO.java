@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import wardrobe.project.com.recommendationservice.dto.external.ClothingItemExternalDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,4 +20,5 @@ public class OutfitResponseDTO {
     private String img;
     private int items;
     private List<String> tags;
+    private List<ClothingItemExternalDTO> clothingItems;
 }
