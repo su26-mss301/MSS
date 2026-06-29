@@ -2,6 +2,19 @@ spring:
   application:
     name: user-service
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${APP_EMAIL}
+    password: ${APP_PASSWORD}
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   datasource:
     url: jdbc:postgresql://localhost:5435/user_service_db
     username: admin
@@ -27,6 +40,19 @@ server:
   servlet:
     context-path: /api/v1/users
 
+    keycloak:
+      server-url: ${KEYCLOAK_SERVER_URL}
+      admin-realm: ${KEYCLOAK_ADMIN_REALM}
+      app-realm: ${KEYCLOAK_APP_REALM}
+
+      # dùng cho user login
+      client-id: ${KEYCLOAK_CLIENT_ID}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET}
+
+      # dùng cho admin API, nhưng dùng chung client
+      admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+
 eureka:
   client:
     service-url:
@@ -38,12 +64,6 @@ eureka:
     hostname: localhost
     instance-id: ${spring.application.name}:${server.port}
 
-aws:
-  cognito:
-    region: ${AWS_REGION}
-    client-id: ${AWS_CLIENT_ID}
-    user-pool-id: ${AWS_USER_POOL_ID}
-    default-group: ROLE_USER
 
 
 app:

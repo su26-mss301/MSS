@@ -1,4 +1,4 @@
-package wardrobe.project.com.userservice.dto.request.auth;
+package wardrobe.project.com.userservice.dto.request.user;
 
 import lombok.*;
 
@@ -7,13 +7,9 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegisterRequest {
-
+public class CreateUserRequest {
     private String email;
-
     private String username;
-
     private String password;
-
-    private String fullName;
+    private String firstName;
 }

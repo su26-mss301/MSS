@@ -1,14 +1,9 @@
 package wardrobe.project.com.userservice.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import wardrobe.project.com.userservice.enums.Role;
 import wardrobe.project.com.userservice.enums.UserStatus;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -26,7 +21,7 @@ import java.time.LocalDateTime;
 public class User extends BaseEntity {
 
     /**
-     * Khóa chính lấy từ Cognito sub.
+     * Khóa chính lấy từ Keycloak sub.
      */
     @Id
     @Column(name = "user_id", nullable = false, updatable = false, length = 100)
@@ -47,17 +42,25 @@ public class User extends BaseEntity {
     @Column(name = "phone_number", length = 30)
     private String phoneNumber;
 
+    @Column(name =  "address", columnDefinition = "TEXT")
+    private String address;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private UserStatus status;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
     private Role role;
 
     @Override
     protected void onCreate() {
         if (status == null) {
             status = UserStatus.ACTIVE;
+        }
+
+        if (role == null) {
+            role = Role.ROLE_USER;
         }
     }
 }

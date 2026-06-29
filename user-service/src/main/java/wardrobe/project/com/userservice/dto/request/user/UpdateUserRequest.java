@@ -1,4 +1,4 @@
-package wardrobe.project.com.userservice.dto.response.user;
+package wardrobe.project.com.userservice.dto.request.user;
 
 import lombok.*;
 
@@ -7,23 +7,17 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponse {
+public class UpdateUserRequest {
 
     // users table
-    private String userId;
-    private String email;
-    private String username;
     private String fullName;
     private String avatarUrl;
     private String phoneNumber;
     private String address;
-    private String role;
-    private String status;
 
     // user_profiles table
-    private String profileId;
-    private String gender;
     private String dateOfBirth;
+    private String gender;
     private String notes;
 
     private String height;
