@@ -1,5 +1,4 @@
 package wardrobe.project.com.userservice.dto.request.auth;
-
 import lombok.*;
 
 @Getter
@@ -8,6 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginRequest {
-    String email;
-    String password;
+    private String email;
+    private String password;
 }

@@ -7,6 +7,9 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ResendCodeRequest {
+public class VerifyRegisterOtpRequest {
+
     private String email;
+
+    private String otp;
 }
