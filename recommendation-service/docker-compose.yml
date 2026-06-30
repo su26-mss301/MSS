@@ -5,7 +5,7 @@ services:
     image: postgres:15
     container_name: recommendation-db
     ports:
-      - "5432:5432" # Máy tính của bạn : Bên trong Docker
+      - "5436:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password

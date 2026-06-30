@@ -1,4 +1,4 @@
-package wardrobe.project.com.storageservice.config;
+package wardrobe.project.com.recommendationservice.config;
 
 import com.wardrobe.common.auth.AuthContextFilter;
 import org.springframework.context.annotation.Bean;
@@ -12,8 +12,7 @@ public class AuthContextConfig {
     @Bean
     public AuthContextFilter authContextFilter() {
         return new AuthContextFilter(List.of(
-                //những api muốn public
-                //VD: "/auth/**"
+                "/api/v1/recommendation/**"
         ));
     }
 }
