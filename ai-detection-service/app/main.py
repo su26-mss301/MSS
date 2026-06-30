@@ -8,7 +8,8 @@ from app.detector import predict_image
 
 from app.auth_context import (
     CurrentUser,
-    get_current_user
+    get_current_user,
+    require_roles,
 )
 
 load_dotenv()
@@ -57,6 +58,12 @@ app = FastAPI(
 )
 
 
+# ──────────────────────────────────────────────
+# Public endpoints (không cần đăng nhập)
+# Các path này KHÔNG nằm trong public list của gateway
+# nhưng bản thân chúng không cần auth vì chỉ trả status.
+# ──────────────────────────────────────────────
+
 @app.get("/")
 def root():
     return {
@@ -73,11 +80,25 @@ def health():
     }
 
 
+# ──────────────────────────────────────────────
+# Protected endpoints (yêu cầu đăng nhập + role)
+# Gateway (KeycloakAuthGlobalFilter) đã xác thực JWT
+# và inject X-Auth-* headers trước khi request tới đây.
+# ──────────────────────────────────────────────
+
 @app.post("/detect")
 async def detect(
         file: UploadFile = File(...),
-        current_user: CurrentUser = Depends(get_current_user)
+        current_user: CurrentUser = Depends(require_roles("ROLE_USER")),
 ):
+    """
+    Nhận diện trang phục từ ảnh upload.
+
+    Yêu cầu: ROLE_USER hoặc ROLE_ADMIN (ADMIN tự động được phép
+    do thứ bậc role trong require_roles).
+
+    Trả về kết quả YOLO detection kèm thông tin user từ Keycloak.
+    """
     file_path = os.path.join(UPLOAD_DIR, file.filename)
 
     content = await file.read()
