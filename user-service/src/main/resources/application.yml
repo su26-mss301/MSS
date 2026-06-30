@@ -2,6 +2,24 @@ spring:
   application:
     name: user-service
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${APP_EMAIL}
+    password: ${APP_PASSWORD}
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   datasource:
     url: jdbc:postgresql://localhost:5435/user_service_db
     username: admin
@@ -27,23 +45,18 @@ server:
   servlet:
     context-path: /api/v1/users
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
+    keycloak:
+      server-url: ${KEYCLOAK_SERVER_URL}
+      admin-realm: ${KEYCLOAK_ADMIN_REALM}
+      app-realm: ${KEYCLOAK_APP_REALM}
 
-  instance:
-    prefer-ip-address: true
-    ip-address: 127.0.0.1
-    hostname: localhost
-    instance-id: ${spring.application.name}:${server.port}
+      # dùng cho user login
+      client-id: ${KEYCLOAK_CLIENT_ID}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET}
 
-aws:
-  cognito:
-    region: ${AWS_REGION}
-    client-id: ${AWS_CLIENT_ID}
-    user-pool-id: ${AWS_USER_POOL_ID}
-    default-group: ROLE_USER
+      # dùng cho admin API, nhưng dùng chung client
+      admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
 
 
 app:
@@ -54,5 +67,10 @@ app:
     refresh-token-cookie-max-age-days: 8
     id-token-cookie-max-age-minutes: 20
     access-token-cookie-max-age-minutes: 20
+
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket: ${AWS_S3_BUCKET_NAME}
 
 

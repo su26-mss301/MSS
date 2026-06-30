@@ -2,6 +2,7 @@ package wardrobe.project.com.userservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import wardrobe.project.com.userservice.entity.BaseEntity;
 import wardrobe.project.com.userservice.enums.Gender;
 
 import java.time.LocalDate;
@@ -37,8 +38,20 @@ public class UserProfile extends BaseEntity {
     @Column(name = "weight_kg")
     private Double weightKg;
 
-    @Column(name = "body_measurement", columnDefinition = "TEXT")
-    private String bodyMeasurement;
+    @Column(name = "chest_cm")
+    private Double chestCm;
+
+    @Column(name = "waist_cm")
+    private Double waistCm;
+
+    @Column(name = "hips_cm")
+    private Double hipsCm;
+
+    @Column(name = "shoe_size")
+    private Double shoeSize;
+
+    @Column(name = "fit_preference", length = 50)
+    private String fitPreference;
 
     @Column(name = "favorite_colors", columnDefinition = "TEXT")
     private String favoriteColors;

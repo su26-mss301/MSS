@@ -5,48 +5,40 @@ spring:
   application:
     name: api-gateway
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/smart-wardrobe
+
   cloud:
     gateway:
       server:
         webflux:
           routes:
             - id: user-service
-              uri: lb://user-service
+              uri: http://localhost:8081
               predicates:
                 - Path=/api/v1/users/**
+
             - id: wardrobe-service
-              uri: lb://wardrobe-service
+              uri: http://localhost:8082
               predicates:
                 - Path=/api/v1/wardrobe/**
+
             - id: recommendation-service
-              uri: lb://recommendation-service
+              uri: http://localhost:8083
               predicates:
                 - Path=/api/v1/recommendation/**
+
             - id: ai-detection-service
               uri: http://localhost:8084
               predicates:
                 - Path=/api/v1/ai/**
               filters:
                 - StripPrefix=3
+
             - id: storage-service
-              uri: lb://storage-service
+              uri: http://localhost:8085
               predicates:
                 - Path=/api/v1/storage/**
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
-  instance:
-    prefer-ip-address: true
-    ip-address: 127.0.0.1
-    hostname: localhost
-    instance-id: ${spring.application.name}:${server.port}
-
-cognito:
-  region: ${COGNITO_REGION}
-  user-pool-id: ${COGNITO_USER_POOL_ID}
-  client-id: ${COGNITO_APP_CLIENT_ID}
-  issuer-uri: https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_uDAME2CDM
-  jwk-set-uri: https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_uDAME2CDM/.well-known/jwks.json
