@@ -1,11 +1,10 @@
 package wardrobe.project.com.userservice.controller.user;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import wardrobe.project.com.userservice.dto.ApiResponse;
 import wardrobe.project.com.userservice.dto.request.user.UpdateUserRequest;
 import wardrobe.project.com.userservice.dto.response.user.UserResponse;
@@ -26,5 +25,19 @@ public class UserController {
                 "Update profile successfully",
                 userService.updateProfile(request)
         );
+    }
+
+    @PutMapping(
+            value = "/me/avatar",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ApiResponse<UserResponse> uploadMyAvatar(
+            @RequestPart("file") MultipartFile file
+    ) {
+
+
+        UserResponse response = userService.uploadAvatar(file);
+
+        return ApiResponse.success(response);
     }
 }

@@ -2,6 +2,11 @@ spring:
   application:
     name: user-service
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -53,18 +58,6 @@ server:
       admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
       admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
-
-  instance:
-    prefer-ip-address: true
-    ip-address: 127.0.0.1
-    hostname: localhost
-    instance-id: ${spring.application.name}:${server.port}
-
-
 
 app:
   cookie:
@@ -74,5 +67,10 @@ app:
     refresh-token-cookie-max-age-days: 8
     id-token-cookie-max-age-minutes: 20
     access-token-cookie-max-age-minutes: 20
+
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket: ${AWS_S3_BUCKET_NAME}
 
 

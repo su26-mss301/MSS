@@ -3,8 +3,10 @@ package wardrobe.project.com.userservice.service.user.Impl;
 import com.wardrobe.common.auth.AuthContext;
 import com.wardrobe.common.auth.AuthContextHolder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import wardrobe.project.com.userservice.dto.request.user.UpdateUserRequest;
 import wardrobe.project.com.userservice.dto.response.auth.LoginResponse;
 import wardrobe.project.com.userservice.dto.response.user.UserResponse;
@@ -14,6 +16,7 @@ import wardrobe.project.com.userservice.enums.Gender;
 import wardrobe.project.com.userservice.mapper.UserMapper;
 import wardrobe.project.com.userservice.repository.UserProfileRepository;
 import wardrobe.project.com.userservice.repository.UserRepository;
+import wardrobe.project.com.userservice.service.s3.S3StorageService;
 import wardrobe.project.com.userservice.service.user.UserService;
 
 import java.time.LocalDate;
@@ -23,6 +26,7 @@ import java.time.LocalDate;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final S3StorageService s3StorageService;
     private final UserMapper userMapper;
     private final UserProfileRepository userProfileRepository;
 
@@ -67,6 +71,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasAuthority('ROLE_USER')")
     public UserResponse updateProfile(UpdateUserRequest request) {
         AuthContext authContext = AuthContextHolder.get();
         String userId = authContext.getUserId();
@@ -159,6 +164,26 @@ public class UserServiceImpl implements UserService {
         userProfileRepository.save(profile);
 
         return userMapper.toUserResponse(user, profile);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse uploadAvatar(MultipartFile file) {
+        AuthContext authContext = AuthContextHolder.get();
+        String userId = authContext.getUserId();
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+
+        String avatarUrl = s3StorageService.uploadAvatar(
+                user.getUserId(),
+                file
+        );
+
+        user.setAvatarUrl(avatarUrl);
+
+        User savedUser = userRepository.save(user);
+
+        return userMapper.toUserResponse(savedUser);
     }
 
     private boolean hasText(String value) {

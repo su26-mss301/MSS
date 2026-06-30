@@ -52,12 +52,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-            <version>4.3.2</version>
-        </dependency>
-
-        <dependency>
             <groupId>com.wardrobe</groupId>
             <artifactId>common-auth</artifactId>
             <version>0.0.1-SNAPSHOT</version>
