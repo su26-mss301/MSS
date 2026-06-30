@@ -2,6 +2,11 @@ spring:
   application:
     name: user-service
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
   mail:
     host: smtp.gmail.com
     port: 587
@@ -62,5 +67,10 @@ app:
     refresh-token-cookie-max-age-days: 8
     id-token-cookie-max-age-minutes: 20
     access-token-cookie-max-age-minutes: 20
+
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket: ${AWS_S3_BUCKET_NAME}
 
 
