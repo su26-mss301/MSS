@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import wardrobe.project.com.wardrobeservice.dto.request.ClothingItemCreateRequestDTO;
 import wardrobe.project.com.wardrobeservice.dto.request.ClothingItemUpdateRequestDTO;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @RequestMapping("/clothing-items")
 @RequiredArgsConstructor
 @Tag(name = "Clothing Item", description = "Clothing Item management APIs")
+@PreAuthorize("hasAuthority('ROLE_USER')")
 public class ClothingItemController {
 
     private final ClothingItemService clothingItemService;

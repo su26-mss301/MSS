@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import wardrobe.project.com.wardrobeservice.dto.request.WardrobeCreateRequestDTO;
 import wardrobe.project.com.wardrobeservice.dto.request.WardrobeUpdateRequestDTO;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @RequestMapping("/wardrobes")
 @RequiredArgsConstructor
 @Tag(name = "Wardrobe", description = "Wardrobe management APIs")
+@PreAuthorize("hasAuthority('ROLE_USER')")
 public class WardrobeController {
 
     private final WardrobeService wardrobeService;
@@ -57,7 +59,7 @@ public class WardrobeController {
                 .build());
     }
 
-    @GetMapping("/user/{userId}")
+    @GetMapping("/{userId}")
     @Operation(summary = "Get all wardrobes for a specific user")
     public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> getWardrobesByUserId(@PathVariable UUID userId) {
         return ResponseEntity.ok(ApiResponse.<List<WardrobeResponseDTO>>builder()
