@@ -16,6 +16,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
+
+import java.util.Arrays;
+
 public class AuthContextFilter extends OncePerRequestFilter {
 
     private static final List<String> DEFAULT_WHITELIST_PATTERNS = List.of(
@@ -81,11 +88,21 @@ public class AuthContextFilter extends OncePerRequestFilter {
             AuthContext authContext = authContextResolver.resolve(request);
             AuthContextHolder.set(authContext);
 
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            authContext,
+                            null,
+                            buildAuthorities(authContext)
+                    );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
             filterChain.doFilter(request, response);
         } catch (AuthException ex) {
             handleAuthException(response, ex);
         } finally {
             AuthContextHolder.clear();
+            SecurityContextHolder.clearContext();
         }
     }
 
@@ -109,5 +126,24 @@ public class AuthContextFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
 
         objectMapper.writeValue(response.getWriter(), body);
+    }
+
+    private List<SimpleGrantedAuthority> buildAuthorities(AuthContext authContext) {
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+
+        if (authContext.getRole() != null) {
+            authorities.add(
+                    new SimpleGrantedAuthority(authContext.getRole().name())
+            );
+        }
+
+        if (authContext.getScopes() != null) {
+            authContext.getScopes().stream()
+                    .filter(scope -> scope != null && !scope.isBlank())
+                    .map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
+                    .forEach(authorities::add);
+        }
+
+        return authorities;
     }
 }
