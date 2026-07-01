@@ -2,6 +2,7 @@ package wardrobe.project.com.recommendationservice.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import wardrobe.project.com.recommendationservice.dto.response.ApiResponse;
 import wardrobe.project.com.recommendationservice.dto.response.RecommendationResponseDTO;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/recommendation")
+@PreAuthorize("hasAuthority('ROLE_USER')")
 @RequiredArgsConstructor
 public class RecommendationController {
 
