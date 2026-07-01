@@ -1,4 +1,9 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    compatibility-verifier:
+      enabled: false
   application:
     name: recommendation-service
 
