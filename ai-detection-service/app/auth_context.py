@@ -8,7 +8,7 @@
 #   X-Auth-User-Id    : Keycloak subject (UUID)
 #   X-Auth-User-Email : email user
 #   X-Auth-Username   : preferred_username
-#   X-Auth-Role       : role chính (ROLE_USER | ROLE_ADMIN | ROLE_STAFF)
+#   X-Auth-Role       : role chính (ROLE_USER | ROLE_ADMIN)
 #   X-Auth-Groups     : tất cả roles, phân cách bởi dấu phẩy
 #   X-Auth-Scopes     : OAuth2 scopes, phân cách bởi dấu cách
 #   X-Request-Id      : UUID của request
@@ -16,11 +16,10 @@
 from fastapi import Header, HTTPException, Depends
 from pydantic import BaseModel
 
-# Thứ tự ưu tiên role — số càng cao thì quyền càng cao
+# Dự án chỉ có 2 role: ROLE_USER < ROLE_ADMIN
 _ROLE_PRIORITY: dict[str, int] = {
     "ROLE_USER": 1,
-    "ROLE_STAFF": 2,
-    "ROLE_ADMIN": 3,
+    "ROLE_ADMIN": 2,
 }
 
 
@@ -87,10 +86,11 @@ def require_roles(*allowed_roles: str):
     Hỗ trợ thứ bậc: ROLE_ADMIN tự động được phép ở mọi endpoint
     không phân biệt role yêu cầu là gì.
 
+    Dự án có 2 role: ROLE_USER, ROLE_ADMIN
+
     Ví dụ:
-        Depends(require_roles("ROLE_USER"))           # USER + ADMIN đều qua
-        Depends(require_roles("ROLE_ADMIN"))          # chỉ ADMIN
-        Depends(require_roles("ROLE_USER", "ROLE_STAFF"))  # USER, STAFF, ADMIN
+        Depends(require_roles("ROLE_USER"))   # USER + ADMIN đều qua
+        Depends(require_roles("ROLE_ADMIN"))  # chỉ ADMIN
     """
     allowed_set = set(allowed_roles)
 
@@ -116,9 +116,3 @@ def require_roles(*allowed_roles: str):
         )
 
     return _checker
-
-
-# Giữ lại để tương thích ngược nếu có code khác dùng
-def require_role(required_role: str):
-    """Deprecated: dùng require_roles() thay thế."""
-    return require_roles(required_role)
