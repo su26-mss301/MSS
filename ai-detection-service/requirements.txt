@@ -9,5 +9,5 @@ pillow
 python-dotenv
 webcolors
 scikit-learn
-sqlalchemy
+SQLAlchemy
 psycopg2-binary
