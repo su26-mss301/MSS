@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Depends
 from dotenv import load_dotenv
 import os
+import tempfile
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -14,9 +15,6 @@ Base.metadata.create_all(bind=engine)
 
 APP_NAME = os.getenv("APP_NAME", "ai-detection-service")
 PORT = int(os.getenv("PORT", 8084))
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(
     title="AI Detection Service",
@@ -62,14 +60,17 @@ async def detect(
     Yêu cầu: ROLE_USER hoặc ROLE_ADMIN (ADMIN tự động được phép
     do thứ bậc role trong require_roles).
     """
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-
     content = await file.read()
+    suffix = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(content)
-
-    detections = predict_image(file_path)
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    try:
+        with os.fdopen(tmp_fd, "wb") as tmp:
+            tmp.write(content)
+        detections = predict_image(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
     if detections:
         primary = detections[0]
