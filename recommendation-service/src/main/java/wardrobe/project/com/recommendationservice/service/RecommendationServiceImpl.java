@@ -61,13 +61,21 @@ public class RecommendationServiceImpl {
         return (float) (avgScore * 10);
     }
 
-    private String generateDynamicName(List<ClothingItemExternalDTO> outfit, String context) {
-        if (outfit == null || outfit.isEmpty()) return "Trang Phục " + context;
+    private String generateDynamicName(List<ClothingItemExternalDTO> outfit, String context, String targetStyle) {
+        if (outfit == null || outfit.isEmpty()) {
+            return "Trang Phục " + context;
+        }
+
+        if (targetStyle != null && !targetStyle.trim().isEmpty()) {
+            return "Set Đồ " + targetStyle + " (" + context + ")";
+        }
+
         String mainStyle = outfit.stream()
                 .map(ClothingItemExternalDTO::getStyle)
-                .filter(Objects::nonNull)
+                .filter(style -> style != null && !style.trim().isEmpty())
                 .findFirst()
                 .orElse("Đa Phong Cách");
+
         return "Set Đồ " + mainStyle + " (" + context + ")";
     }
 
@@ -85,56 +93,78 @@ public class RecommendationServiceImpl {
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
-                String token = request.getHeader("Authorization");
-                if (token != null) headers.set("Authorization", token);
-                String actorType = request.getHeader("X-Auth-Actor-Type");
-                if (actorType != null) headers.set("X-Auth-Actor-Type", actorType);
-                String userId = request.getHeader("X-Auth-User-Id");
-                if (userId != null) headers.set("X-Auth-User-Id", userId);
+
+                // Tự động chuyển tiếp toàn bộ header X-Auth-* (đã được common-auth xử lý)
+                java.util.Enumeration<String> headerNames = request.getHeaderNames();
+                while (headerNames != null && headerNames.hasMoreElements()) {
+                    String headerName = headerNames.nextElement();
+                    if (headerName.toLowerCase().startsWith("x-auth-")) {
+                        headers.set(headerName, request.getHeader(headerName));
+                    }
+                }
             }
         } catch (Exception e) {
-            log.warn("Không lấy được header", e);
+            log.warn("Lỗi khi lấy header nội bộ: ", e);
         }
         return new HttpEntity<>(headers);
     }
 
     private UserProfileExternalDTO fetchUserProfile(UUID userId) {
+        UserProfileExternalDTO profile = new UserProfileExternalDTO();
+        profile.setId(userId);
         try {
-            String url = "http://user-service/api/v1/users/me";
-            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
-            if (response.getStatusCode().is2xxSuccessful()) {
-                UserProfileExternalDTO profile = new UserProfileExternalDTO();
-                profile.setId(userId);
+            RestTemplate directRestTemplate = new RestTemplate();
+            String url = "http://localhost:8081/api/v1/users/me";
+            ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode dataNode = response.getBody().has("data") ? response.getBody().path("data") : response.getBody();
+
+                if (dataNode.hasNonNull("stylePreference")) {
+                    profile.setPreferredStyle(dataNode.path("stylePreference").asText());
+                } else if (dataNode.hasNonNull("style_preference")) {
+                    profile.setPreferredStyle(dataNode.path("style_preference").asText());
+                }
+
+                log.info("DEBUG: User Profile Style Preference = {}", profile.getPreferredStyle());
                 return profile;
             }
         } catch (Exception e) {
             log.warn("Lấy Profile thất bại: {}", e.getMessage());
         }
-        UserProfileExternalDTO fallbackProfile = new UserProfileExternalDTO();
-        fallbackProfile.setId(userId);
-        return fallbackProfile;
+        return profile;
     }
 
     private List<ClothingItemExternalDTO> fetchUserWardrobe(UUID userId) {
         List<ClothingItemExternalDTO> allItems = new ArrayList<>();
         try {
             HttpEntity<String> entity = createForwardingHeaders();
-            String wardrobeUrl = "http://wardrobe-service/api/v1/wardrobe/wardrobes/user/" + userId;
-            ResponseEntity<JsonNode> wardrobeRes = restTemplate.exchange(wardrobeUrl, HttpMethod.GET, entity, JsonNode.class);
+            RestTemplate directRestTemplate = new RestTemplate();
+
+            // GỌI TRỰC TIẾP WARDROBE-SERVICE Ở CỔNG 8082
+            String wardrobeUrl = "http://localhost:8082/api/v1/wardrobe/wardrobes";
+            ResponseEntity<JsonNode> wardrobeRes = directRestTemplate.exchange(wardrobeUrl, HttpMethod.GET, entity, JsonNode.class);
             JsonNode wBody = wardrobeRes.getBody();
 
             if (wBody != null && wBody.hasNonNull("data")) {
                 for (JsonNode wNode : wBody.path("data")) {
+                    String wUserId = wNode.path("userId").asText();
+                    if (userId != null && !userId.toString().equalsIgnoreCase(wUserId)) {
+                        continue;
+                    }
+
                     String wardrobeId = wNode.path("wardrobeId").asText();
-                    String zoneUrl = "http://wardrobe-service/api/v1/wardrobe/wardrobe-zones/wardrobe/" + wardrobeId;
-                    ResponseEntity<JsonNode> zoneRes = restTemplate.exchange(zoneUrl, HttpMethod.GET, entity, JsonNode.class);
+
+                    String zoneUrl = "http://localhost:8082/api/v1/wardrobe/wardrobe-zones/wardrobe/" + wardrobeId;
+                    ResponseEntity<JsonNode> zoneRes = directRestTemplate.exchange(zoneUrl, HttpMethod.GET, entity, JsonNode.class);
                     JsonNode zBody = zoneRes.getBody();
 
                     if (zBody != null && zBody.hasNonNull("data")) {
                         for (JsonNode zNode : zBody.path("data")) {
                             String zoneId = zNode.path("zoneId").asText();
-                            String itemUrl = "http://wardrobe-service/api/v1/wardrobe/clothing-items/zone/" + zoneId;
-                            ResponseEntity<ApiResponse<List<ClothingItemExternalDTO>>> itemRes = restTemplate.exchange(
+
+                            String itemUrl = "http://localhost:8082/api/v1/wardrobe/clothing-items/zone/" + zoneId;
+                            ResponseEntity<ApiResponse<List<ClothingItemExternalDTO>>> itemRes = directRestTemplate.exchange(
                                     itemUrl, HttpMethod.GET, entity,
                                     new ParameterizedTypeReference<ApiResponse<List<ClothingItemExternalDTO>>>() {}
                             );
@@ -147,7 +177,7 @@ public class RecommendationServiceImpl {
             }
             return allItems;
         } catch (Exception e) {
-            log.error("LỖI GỌI WARDROBE SERVICE: ", e);
+            log.error("LỖI KHI TRUY XUẤT DỮ LIỆU TỪ WARDROBE SERVICE: ", e);
             return new ArrayList<>();
         }
     }
@@ -180,14 +210,17 @@ public class RecommendationServiceImpl {
     @Transactional
     public RecommendationResponseDTO generateContentBased(UUID userId) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
-        if (wardrobe.isEmpty()) throw new RuntimeException("Không tìm thấy quần áo nào trong tủ!");
+        if (wardrobe.isEmpty()) {
+            log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
+            return createEmptyRecommendationResponse(userId, "Cá Nhân");
+        }
 
         UserProfileExternalDTO profile = fetchUserProfile(userId);
         List<ClothingItemExternalDTO> rankedItems = engine.rankByContentBased(wardrobe, profile);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
         float realScore = calculateRealScore(finalOutfit);
-        String realName = generateDynamicName(finalOutfit, "Cá Nhân");
+        String realName = generateDynamicName(finalOutfit, "Cá Nhân", profile.getPreferredStyle());
         String realDesc = generateDynamicDescription(finalOutfit);
 
         Event event = getOrCreateEvent("Casual");
@@ -198,13 +231,20 @@ public class RecommendationServiceImpl {
     @Transactional
     public RecommendationResponseDTO generateEventBased(UUID userId, String eventType) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
-        if (wardrobe.isEmpty()) throw new RuntimeException("Không tìm thấy quần áo nào trong tủ!");
+        if (wardrobe.isEmpty()) {
+            log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
+            return createEmptyRecommendationResponse(userId, eventType);
+        }
 
         List<ClothingItemExternalDTO> filteredItems = engine.filterByEvent(wardrobe, eventType);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(filteredItems);
 
         float realScore = calculateRealScore(finalOutfit);
-        String realName = generateDynamicName(finalOutfit, eventType);
+
+        UserProfileExternalDTO profile = fetchUserProfile(userId);
+        String fallbackStyle = (profile.getPreferredStyle() != null) ? profile.getPreferredStyle() : eventType;
+        String realName = generateDynamicName(finalOutfit, eventType, fallbackStyle);
+
         String realDesc = generateDynamicDescription(finalOutfit);
 
         Event event = getOrCreateEvent(eventType);
@@ -215,14 +255,21 @@ public class RecommendationServiceImpl {
     @Transactional
     public RecommendationResponseDTO generateCollaborative(UUID userId, UUID groupId) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
-        if (wardrobe.isEmpty()) throw new RuntimeException("Không tìm thấy quần áo nào trong tủ!");
+        if (wardrobe.isEmpty()) {
+            log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
+            return createEmptyRecommendationResponse(userId, "Nhóm Bạn");
+        }
 
         List<String> trendingStyles = List.of("Formal", "Casual");
         List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
         float realScore = calculateRealScore(finalOutfit);
-        String realName = generateDynamicName(finalOutfit, "Nhóm Bạn");
+
+        UserProfileExternalDTO profile = fetchUserProfile(userId);
+        String fallbackStyle = (profile.getPreferredStyle() != null) ? profile.getPreferredStyle() : "Xu Hướng";
+        String realName = generateDynamicName(finalOutfit, "Nhóm Bạn", fallbackStyle);
+
         String realDesc = generateDynamicDescription(finalOutfit);
 
         Event event = getOrCreateEvent("Party");
@@ -289,6 +336,22 @@ public class RecommendationServiceImpl {
                 .recommendationScore(item.getRecommendationScore())
                 .eventType(item.getEvent() != null ? item.getEvent().getEventType() : "General")
                 .sources(realSources)
+                .build();
+    }
+
+    private RecommendationResponseDTO createEmptyRecommendationResponse(UUID userId, String context) {
+        OutfitResponseDTO emptyOutfit = OutfitResponseDTO.builder()
+                .outfitName("Tủ đồ hiện tại chưa có dữ liệu")
+                .description("Bạn chưa thêm quần áo vào tủ đồ của mình. Vui lòng cập nhật thêm quần áo để AI có thể tiến hành phân tích phối đồ.")
+                .items(0)
+                .clothingItems(new ArrayList<>())
+                .build();
+
+        return RecommendationResponseDTO.builder()
+                .userId(userId)
+                .outfit(emptyOutfit)
+                .recommendationScore(0f)
+                .eventType(context)
                 .build();
     }
 }
