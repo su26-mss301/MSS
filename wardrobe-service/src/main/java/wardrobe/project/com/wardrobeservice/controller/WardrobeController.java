@@ -59,7 +59,7 @@ public class WardrobeController {
                 .build());
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping("/user/{userId}")
     @Operation(summary = "Get all wardrobes for a specific user")
     public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> getWardrobesByUserId(@PathVariable UUID userId) {
         return ResponseEntity.ok(ApiResponse.<List<WardrobeResponseDTO>>builder()
