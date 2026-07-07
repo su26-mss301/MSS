@@ -80,11 +80,15 @@ public class RecommendationServiceImpl {
     }
 
     private String generateDynamicDescription(List<ClothingItemExternalDTO> outfit) {
-        if (outfit == null || outfit.isEmpty()) return "Gợi ý tự động từ hệ thống AI.";
-        String itemDetails = outfit.stream()
-                .map(item -> item.getItemName() + " màu " + item.getDominantColor())
-                .collect(Collectors.joining(", "));
-        return "Bộ trang phục được phối từ các vật phẩm thực tế trong tủ của bạn bao gồm: " + itemDetails + ".";
+        if (outfit == null || outfit.isEmpty()) {
+            return "Chưa có gợi ý nào phù hợp với dữ liệu hiện tại.";
+        }
+
+        if (outfit.size() == 1) {
+            return "Gợi ý linh hoạt: Tủ đồ của bạn hiện chưa đủ đa dạng. Đây là món đồ tốt nhất hiện có, hãy thêm quần áo khác để AI tạo set đồ hoàn chỉnh nhé!";
+        }
+
+        return "Sự kết hợp hoàn hảo dựa trên sở thích và dữ liệu tủ đồ của bạn.";
     }
 
     private HttpEntity<String> createForwardingHeaders() {
