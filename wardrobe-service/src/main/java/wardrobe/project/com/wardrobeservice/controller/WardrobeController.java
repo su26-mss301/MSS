@@ -50,12 +50,13 @@ public class WardrobeController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all wardrobes")
-    public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> getAllWardrobes() {
+    @Operation(summary = "Get all wardrobes for current user")
+    public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> getAllWardrobes(@RequestHeader("X-Auth-User-Id") String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
         return ResponseEntity.ok(ApiResponse.<List<WardrobeResponseDTO>>builder()
                 .success(true)
                 .message("All wardrobes fetched successfully")
-                .data(wardrobeService.getAllWardrobes())
+                .data(wardrobeService.getWardrobesByUserId(userId))
                 .build());
     }
 
@@ -90,13 +91,38 @@ public class WardrobeController {
                 .build());
     }
 
+    @PostMapping("/{id}/restore")
+    @Operation(summary = "Restore a deleted wardrobe")
+    public ResponseEntity<ApiResponse<Void>> restoreWardrobe(@PathVariable UUID id) {
+        wardrobeService.restoreWardrobe(id);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .success(true)
+                .message("Wardrobe restored successfully")
+                .data(null)
+                .build());
+    }
+
+    @GetMapping("/trash")
+    @Operation(summary = "Get all deleted wardrobes for current user")
+    public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> getDeletedWardrobes(@RequestHeader("X-Auth-User-Id") String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
+        return ResponseEntity.ok(ApiResponse.<List<WardrobeResponseDTO>>builder()
+                .success(true)
+                .message("Deleted wardrobes fetched successfully")
+                .data(wardrobeService.getDeletedWardrobes(userId))
+                .build());
+    }
+
     @GetMapping("/search")
     @Operation(summary = "Search wardrobes by name")
-    public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> searchWardrobes(@RequestParam String keyword) {
+    public ResponseEntity<ApiResponse<List<WardrobeResponseDTO>>> searchWardrobes(
+            @RequestHeader("X-Auth-User-Id") String userIdStr,
+            @RequestParam String keyword) {
+        UUID userId = UUID.fromString(userIdStr);
         return ResponseEntity.ok(ApiResponse.<List<WardrobeResponseDTO>>builder()
                 .success(true)
                 .message("Search results fetched successfully")
-                .data(wardrobeService.searchWardrobes(keyword))
+                .data(wardrobeService.searchWardrobes(userId, keyword))
                 .build());
     }
 }

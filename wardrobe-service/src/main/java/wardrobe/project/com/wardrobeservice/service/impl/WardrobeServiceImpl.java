@@ -9,8 +9,13 @@ import wardrobe.project.com.wardrobeservice.entity.Wardrobe;
 import wardrobe.project.com.wardrobeservice.exception.AppException;
 import wardrobe.project.com.wardrobeservice.exception.ErrorCode;
 import wardrobe.project.com.wardrobeservice.repository.WardrobeRepository;
+import wardrobe.project.com.wardrobeservice.repository.WardrobeZoneRepository;
+import wardrobe.project.com.wardrobeservice.repository.ClothingItemRepository;
 import wardrobe.project.com.wardrobeservice.service.WardrobeService;
 
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -20,6 +25,8 @@ import java.util.stream.Collectors;
 public class WardrobeServiceImpl implements WardrobeService {
 
     private final WardrobeRepository wardrobeRepository;
+    private final WardrobeZoneRepository wardrobeZoneRepository;
+    private final ClothingItemRepository clothingItemRepository;
 
     @Override
     public WardrobeResponseDTO createWardrobe(UUID userId, WardrobeCreateRequestDTO request) {
@@ -65,20 +72,46 @@ public class WardrobeServiceImpl implements WardrobeService {
     }
 
     @Override
+    @Transactional
     public void deleteWardrobe(UUID id) {
-        if (!wardrobeRepository.existsById(id)) {
-            throw new AppException(ErrorCode.WARDROBE_NOT_FOUND);
+        Wardrobe wardrobe = wardrobeRepository.findById(id)
+            .orElseThrow(() -> new AppException(ErrorCode.WARDROBE_NOT_FOUND));
+            
+        LocalDateTime now = LocalDateTime.now();
+        wardrobe.setDeletedAt(now);
+        if (wardrobe.getZones() != null) {
+            wardrobe.getZones().forEach(zone -> {
+                zone.setDeletedAt(now);
+                if (zone.getItems() != null) {
+                    zone.getItems().forEach(item -> item.setDeletedAt(now));
+                }
+            });
         }
-        wardrobeRepository.deleteById(id);
+        wardrobeRepository.save(wardrobe);
     }
 
     @Override
-    public List<WardrobeResponseDTO> searchWardrobes(String keyword) {
-        List<Wardrobe> wardrobes = wardrobeRepository.findByWardrobeNameContainingIgnoreCase(keyword);
+    @Transactional
+    public void restoreWardrobe(UUID id) {
+        wardrobeRepository.restoreWardrobe(id);
+        wardrobeZoneRepository.restoreZonesByWardrobeId(id);
+        clothingItemRepository.restoreItemsByWardrobeId(id);
+    }
+
+    @Override
+    public List<WardrobeResponseDTO> searchWardrobes(UUID userId, String keyword) {
+        List<Wardrobe> wardrobes = wardrobeRepository.findByUserIdAndWardrobeNameContainingIgnoreCase(userId, keyword);
         if (wardrobes.isEmpty()) {
             throw new AppException(ErrorCode.WARDROBE_NOT_FOUND);
         }
         return wardrobes.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<WardrobeResponseDTO> getDeletedWardrobes(UUID userId) {
+        return wardrobeRepository.findDeletedByUserId(userId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

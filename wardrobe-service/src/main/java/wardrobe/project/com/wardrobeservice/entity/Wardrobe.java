@@ -7,11 +7,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import org.hibernate.annotations.SQLRestriction;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "wardrobe")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,6 +31,12 @@ public class Wardrobe {
 
     @Column(name = "wardrobe_name", nullable = false, length = 100)
     private String wardrobeName;
+
+    @OneToMany(mappedBy = "wardrobe", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private java.util.List<WardrobeZone> zones;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
