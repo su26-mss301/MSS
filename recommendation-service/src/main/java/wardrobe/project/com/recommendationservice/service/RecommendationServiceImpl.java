@@ -30,10 +30,7 @@ import wardrobe.project.com.recommendationservice.repository.OutfitItemRepositor
 import wardrobe.project.com.recommendationservice.repository.OutfitRepository;
 import wardrobe.project.com.recommendationservice.repository.RecommendItemRepository;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,9 +45,6 @@ public class RecommendationServiceImpl {
     private final RecommendItemRepository recommendItemRepository;
     private final EventRepository eventRepository;
     private final RestTemplate restTemplate;
-
-    private static final String USER_SERVICE_URL = "http://user-service/api/v1/users";
-    private static final String WARDROBE_API_BASE = "http://wardrobe-service/api/v1/wardrobe";
 
     private float calculateRealScore(List<ClothingItemExternalDTO> outfit) {
         if (outfit == null || outfit.isEmpty()) return 0f;
@@ -80,15 +74,11 @@ public class RecommendationServiceImpl {
     }
 
     private String generateDynamicDescription(List<ClothingItemExternalDTO> outfit) {
-        if (outfit == null || outfit.isEmpty()) {
-            return "Chưa có gợi ý nào phù hợp với dữ liệu hiện tại.";
-        }
-
-        if (outfit.size() == 1) {
-            return "Gợi ý linh hoạt: Tủ đồ của bạn hiện chưa đủ đa dạng. Đây là món đồ tốt nhất hiện có, hãy thêm quần áo khác để AI tạo set đồ hoàn chỉnh nhé!";
-        }
-
-        return "Sự kết hợp hoàn hảo dựa trên sở thích và dữ liệu tủ đồ của bạn.";
+        if (outfit == null || outfit.isEmpty()) return "Gợi ý tự động từ hệ thống AI.";
+        String itemDetails = outfit.stream()
+                .map(item -> item.getItemName() + " màu " + item.getDominantColor())
+                .collect(Collectors.joining(", "));
+        return "Bộ trang phục được phối từ các vật phẩm thực tế trong tủ của bạn bao gồm: " + itemDetails + ".";
     }
 
     private HttpEntity<String> createForwardingHeaders() {
@@ -190,9 +180,79 @@ public class RecommendationServiceImpl {
         return eventRepository.findByEventType(eventType).orElseGet(() -> {
             Event newEvent = new Event();
             newEvent.setEventType(eventType);
-            newEvent.setEventName(eventType);
+            newEvent.setEventName(newEvent.getEventType());
             return eventRepository.save(newEvent);
         });
+    }
+
+    private List<UUID> fetchGroupMemberIds(UUID userId, UUID groupId) {
+        List<UUID> memberIds = new ArrayList<>();
+        try {
+            RestTemplate directRestTemplate = new RestTemplate();
+            String url = "http://localhost:8081/api/v1/users/friend-groups/user/" + userId;
+            ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode dataNode = response.getBody().path("data");
+                if (dataNode.isArray() && dataNode.size() > 0) {
+                    JsonNode members = dataNode.get(0).path("members");
+                    if (members.isArray()) {
+                        for (JsonNode m : members) {
+                            memberIds.add(UUID.fromString(m.path("userId").asText()));
+                        }
+                    }
+                }
+            }
+
+            if (memberIds.isEmpty() && groupId != null && !groupId.toString().equals("999e4567-e89b-12d3-a456-426614174999")) {
+                String fallbackUrl = "http://localhost:8081/api/v1/users/friend-groups/" + groupId;
+                ResponseEntity<JsonNode> fallbackRes = directRestTemplate.exchange(fallbackUrl, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+                if (fallbackRes.getStatusCode().is2xxSuccessful() && fallbackRes.getBody() != null) {
+                    JsonNode members = fallbackRes.getBody().path("data").path("members");
+                    if (members.isArray()) {
+                        for (JsonNode m : members) {
+                            memberIds.add(UUID.fromString(m.path("userId").asText()));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Lấy danh sách thành viên nhóm thất bại: {}", e.getMessage());
+        }
+        return memberIds;
+    }
+
+    private List<String> fetchGroupTrendingStyles(List<UUID> memberIds) {
+        Map<String, Long> frequencyMap = new HashMap<>();
+        try {
+            RestTemplate directRestTemplate = new RestTemplate();
+            for (UUID mId : memberIds) {
+                try {
+                    String memberUrl = "http://localhost:8081/api/v1/users/" + mId;
+                    ResponseEntity<JsonNode> res = directRestTemplate.exchange(memberUrl, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+                    if (res.getStatusCode().is2xxSuccessful() && res.getBody() != null) {
+                        JsonNode data = res.getBody().path("data");
+                        String style = data.hasNonNull("stylePreference") ? data.path("stylePreference").asText() :
+                                data.hasNonNull("style_preference") ? data.path("style_preference").asText() : null;
+                        if (style != null && !style.trim().isEmpty()) {
+                            frequencyMap.put(style.toLowerCase(), frequencyMap.getOrDefault(style.toLowerCase(), 0L) + 1);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception e) {
+            log.warn("Xử lý xu hướng phong cách nhóm gặp lỗi: {}", e.getMessage());
+        }
+
+        List<String> trends = frequencyMap.entrySet().stream()
+                .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        if (trends.isEmpty()) {
+            trends.addAll(List.of("casual", "formal"));
+        }
+        return trends;
     }
 
     @Transactional(readOnly = true)
@@ -213,13 +273,31 @@ public class RecommendationServiceImpl {
 
     @Transactional
     public RecommendationResponseDTO generateContentBased(UUID userId) {
+        UserProfileExternalDTO profile = fetchUserProfile(userId);
+        if (profile == null || profile.getPreferredStyle() == null || profile.getPreferredStyle().trim().isEmpty()) {
+            log.warn("Người dùng {} chưa thiết lập phong cách cá nhân trong hồ sơ.", userId);
+
+            OutfitResponseDTO noPreferenceOutfit = OutfitResponseDTO.builder()
+                    .outfitName("Chưa thiết lập phong cách cá nhân")
+                    .description("Hệ thống chưa thể đưa ra gợi ý cá nhân hóa do bạn chưa chọn phong cách ưa thích. Vui lòng truy cập mục Cài đặt sở thích trên giao diện để thiết lập gu thời trang và màu sắc của mình trước.")
+                    .items(0)
+                    .clothingItems(new ArrayList<>())
+                    .build();
+
+            return RecommendationResponseDTO.builder()
+                    .userId(userId)
+                    .outfit(noPreferenceOutfit)
+                    .recommendationScore(0f)
+                    .eventType("Cá Nhân")
+                    .build();
+        }
+
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
         if (wardrobe.isEmpty()) {
             log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
             return createEmptyRecommendationResponse(userId, "Cá Nhân");
         }
 
-        UserProfileExternalDTO profile = fetchUserProfile(userId);
         List<ClothingItemExternalDTO> rankedItems = engine.rankByContentBased(wardrobe, profile);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
@@ -258,13 +336,32 @@ public class RecommendationServiceImpl {
 
     @Transactional
     public RecommendationResponseDTO generateCollaborative(UUID userId, UUID groupId) {
+        List<UUID> memberIds = fetchGroupMemberIds(userId, groupId);
+        if (memberIds.isEmpty()) {
+            log.warn("Người dùng {} chưa tham gia vào bất kỳ nhóm bạn nào.", userId);
+
+            OutfitResponseDTO noGroupOutfit = OutfitResponseDTO.builder()
+                    .outfitName("Chưa tham gia nhóm bạn nào")
+                    .description("Hệ thống chưa thể đưa ra gợi ý theo nhóm do bạn chưa tham gia vào nhóm bạn nào. Vui lòng tạo hoặc tham gia một nhóm bạn trên hệ thống để chia sẻ gu thời trang cùng nhau nhé!")
+                    .items(0)
+                    .clothingItems(new ArrayList<>())
+                    .build();
+
+            return RecommendationResponseDTO.builder()
+                    .userId(userId)
+                    .outfit(noGroupOutfit)
+                    .recommendationScore(0f)
+                    .eventType("Nhóm Bạn")
+                    .build();
+        }
+
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
         if (wardrobe.isEmpty()) {
             log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
             return createEmptyRecommendationResponse(userId, "Nhóm Bạn");
         }
 
-        List<String> trendingStyles = List.of("Formal", "Casual");
+        List<String> trendingStyles = fetchGroupTrendingStyles(memberIds);
         List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
