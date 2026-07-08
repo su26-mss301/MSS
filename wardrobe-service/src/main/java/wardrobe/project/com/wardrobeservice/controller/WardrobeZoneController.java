@@ -87,6 +87,28 @@ public class WardrobeZoneController {
                 .build());
     }
 
+    @PostMapping("/{id}/restore")
+    @Operation(summary = "Restore a deleted wardrobe zone")
+    public ResponseEntity<ApiResponse<Void>> restoreZone(@PathVariable UUID id) {
+        wardrobeZoneService.restoreZone(id);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .success(true)
+                .message("Wardrobe zone restored successfully")
+                .data(null)
+                .build());
+    }
+
+    @GetMapping("/trash")
+    @Operation(summary = "Get all deleted wardrobe zones for current user")
+    public ResponseEntity<ApiResponse<List<WardrobeZoneResponseDTO>>> getDeletedZones(@RequestHeader("X-Auth-User-Id") String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
+        return ResponseEntity.ok(ApiResponse.<List<WardrobeZoneResponseDTO>>builder()
+                .success(true)
+                .message("Deleted wardrobe zones fetched successfully")
+                .data(wardrobeZoneService.getDeletedZones(userId))
+                .build());
+    }
+
     @GetMapping("/search")
     @Operation(summary = "Search wardrobe zones by name")
     public ResponseEntity<ApiResponse<List<WardrobeZoneResponseDTO>>> searchZones(

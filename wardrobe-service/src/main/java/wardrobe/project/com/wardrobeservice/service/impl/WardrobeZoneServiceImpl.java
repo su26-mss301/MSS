@@ -11,8 +11,12 @@ import wardrobe.project.com.wardrobeservice.exception.AppException;
 import wardrobe.project.com.wardrobeservice.exception.ErrorCode;
 import wardrobe.project.com.wardrobeservice.repository.WardrobeRepository;
 import wardrobe.project.com.wardrobeservice.repository.WardrobeZoneRepository;
+import wardrobe.project.com.wardrobeservice.repository.ClothingItemRepository;
 import wardrobe.project.com.wardrobeservice.service.WardrobeZoneService;
 
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -23,6 +27,7 @@ public class WardrobeZoneServiceImpl implements WardrobeZoneService {
 
     private final WardrobeZoneRepository wardrobeZoneRepository;
     private final WardrobeRepository wardrobeRepository;
+    private final ClothingItemRepository clothingItemRepository;
 
     @Override
     public WardrobeZoneResponseDTO createZone(WardrobeZoneCreateRequestDTO request) {
@@ -78,11 +83,29 @@ public class WardrobeZoneServiceImpl implements WardrobeZoneService {
     }
 
     @Override
+    @Transactional
     public void deleteZone(UUID id) {
-        if (!wardrobeZoneRepository.existsById(id)) {
-            throw new AppException(ErrorCode.WARDROBE_ZONE_NOT_FOUND);
+        WardrobeZone zone = wardrobeZoneRepository.findById(id)
+            .orElseThrow(() -> new AppException(ErrorCode.WARDROBE_ZONE_NOT_FOUND));
+            
+        LocalDateTime now = LocalDateTime.now();
+        zone.setDeletedAt(now);
+        if (zone.getItems() != null) {
+            zone.getItems().forEach(item -> item.setDeletedAt(now));
         }
-        wardrobeZoneRepository.deleteById(id);
+        wardrobeZoneRepository.save(zone);
+    }
+
+    @Override
+    @Transactional
+    public void restoreZone(UUID id) {
+        Integer isParentDeleted = wardrobeZoneRepository.isParentWardrobeDeleted(id);
+        if (isParentDeleted != null && isParentDeleted == 1) {
+            throw new AppException(ErrorCode.PARENT_WARDROBE_DELETED);
+        }
+
+        wardrobeZoneRepository.restoreZone(id);
+        clothingItemRepository.restoreItemsByZoneId(id);
     }
 
     @Override
@@ -99,6 +122,13 @@ public class WardrobeZoneServiceImpl implements WardrobeZoneService {
         }
         
         return zones.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<WardrobeZoneResponseDTO> getDeletedZones(UUID userId) {
+        return wardrobeZoneRepository.findDeletedByUserId(userId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
