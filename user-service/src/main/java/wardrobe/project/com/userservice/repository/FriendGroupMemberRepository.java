@@ -16,7 +16,17 @@ public interface FriendGroupMemberRepository extends JpaRepository<FriendGroupMe
 
     Optional<FriendGroupMember> findByGroupAndUserAndActiveTrue(FriendGroup group, User user);
 
+    Optional<FriendGroupMember> findByGroupAndUser(
+            FriendGroup group,
+            User user
+    );
+    List<FriendGroupMember> findByGroupAndActiveTrue(FriendGroup group);
+
     List<FriendGroupMember> findByUserAndActiveTrueOrderByCreatedAtDesc(User user);
 
     long countByGroupAndActiveTrue(FriendGroup group);
+
+    List<FriendGroupMember> findAllByGroupAndActiveTrue(FriendGroup group);
+
+    Optional<FriendGroupMember> findByMemberIdAndGroupAndActiveTrue(String memberId, FriendGroup group);
 }

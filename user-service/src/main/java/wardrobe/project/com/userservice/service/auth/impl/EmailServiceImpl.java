@@ -36,4 +36,26 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(message);
     }
+
+    @Override
+    public void sendForgotPasswordOtp(String to, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+
+        message.setFrom(fromEmail);
+        message.setTo(to);
+        message.setSubject("Smart Wardrobe - Mã xác thực quên mật khẩu");
+        message.setText("""
+            Xin chào,
+
+            Mã OTP để đặt lại mật khẩu Smart Wardrobe của bạn là:
+
+            %s
+
+            Mã này có hiệu lực trong 5 phút.
+
+            Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+            """.formatted(otp));
+
+        mailSender.send(message);
+    }
 }

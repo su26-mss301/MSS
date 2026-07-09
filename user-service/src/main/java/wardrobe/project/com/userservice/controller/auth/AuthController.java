@@ -8,12 +8,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import wardrobe.project.com.userservice.dto.request.auth.LoginRequest;
-import wardrobe.project.com.userservice.dto.request.auth.RegisterRequest;
-import wardrobe.project.com.userservice.dto.request.auth.VerifyRegisterOtpRequest;
+import wardrobe.project.com.userservice.dto.ApiResponse;
+import wardrobe.project.com.userservice.dto.request.auth.*;
 import wardrobe.project.com.userservice.dto.response.auth.KeycloakTokenResponse;
 import wardrobe.project.com.userservice.dto.response.auth.LoginResponse;
+import wardrobe.project.com.userservice.dto.response.auth.ResetPasswordRequest;
+import wardrobe.project.com.userservice.dto.response.auth.VerifyForgotPasswordOtpResponse;
 import wardrobe.project.com.userservice.service.auth.AuthService;
+import wardrobe.project.com.userservice.service.auth.ForgotPasswordService;
 import wardrobe.project.com.userservice.service.user.UserService;
 
 import java.time.Duration;
@@ -26,6 +28,8 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final ForgotPasswordService forgotPasswordService;
+
 
     @Value("${app.cookie.secure}")
     private boolean cookieSecure;
@@ -164,6 +168,31 @@ public class AuthController {
                 .path("/")
                 .maxAge(0)
                 .build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        forgotPasswordService.forgotPassword(request);
+
+        return ApiResponse.success(Map.of(
+                "message", "OTP has been sent to your email"
+        ));
+    }
+
+    @PostMapping("/verify-forgot-password-otp")
+    public ApiResponse<VerifyForgotPasswordOtpResponse> verifyForgotPasswordOtp(
+            @RequestBody VerifyForgotPasswordOtpRequest request
+    ) {
+        return ApiResponse.success(forgotPasswordService.verifyOtp(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        forgotPasswordService.resetPassword(request);
+
+        return ApiResponse.success(Map.of(
+                "message", "Password reset successfully"
+        ));
     }
 
     private ResponseEntity<?> unauthorizedAndClearCookies(String message) {

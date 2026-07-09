@@ -6,4 +6,6 @@ public interface KeycloakUserService {
     boolean existsByEmail(String email);
 
     String createUser(CreateUserRequest request);
+
+    void resetPasswordByEmail(String email, String newPassword);
 }
