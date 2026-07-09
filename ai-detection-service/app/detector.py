@@ -12,9 +12,12 @@ MODEL_PATH = os.getenv("MODEL_PATH")
 model = YOLO(MODEL_PATH)
 
 
-def predict_image(image_path):
+def predict_image(image_bgr):
+    if image_bgr is None:
+        return []
+
     results = model.predict(
-        source=image_path,
+        source=image_bgr,
         conf=0.25,
         verbose=False
     )
@@ -34,7 +37,7 @@ def predict_image(image_path):
                 "y2": round(float(box.xyxy[0][3]), 2)
             }
 
-            color = detect_dominant_color(image_path, bbox)
+            color = detect_dominant_color(image_bgr, bbox)
             attributes = infer_attributes(class_name)
 
             detections.append({

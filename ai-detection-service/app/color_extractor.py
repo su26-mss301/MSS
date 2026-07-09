@@ -134,9 +134,7 @@ def filter_background_pixels(pixels):
     return np.array(filtered)
 
 
-def detect_dominant_color(image_path, bbox):
-    image = cv2.imread(image_path)
-
+def detect_dominant_color(image, bbox):
     if image is None:
         return {
             "name": "unknown",
