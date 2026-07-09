@@ -14,6 +14,9 @@ import wardrobe.project.com.userservice.repository.UserRepository;
 import wardrobe.project.com.userservice.repository.UserStylePreferenceRepository;
 import wardrobe.project.com.userservice.service.style.UserStylePreferenceService;
 
+import java.util.ArrayList;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class UserStylePreferenceServiceImpl implements UserStylePreferenceService {
@@ -58,5 +61,17 @@ public class UserStylePreferenceServiceImpl implements UserStylePreferenceServic
         return preferenceRepository.findByUser(user)
                 .map(preferenceMapper::toResponse)
                 .orElseGet(() -> preferenceMapper.toResponse(null));
+    }
+
+    @Override
+    public StylePreferenceResponse getUserPreferences(UUID userId) {
+        return preferenceRepository.findByUserId(userId)
+                .map(preferenceMapper::toResponse)
+                .orElseGet(() -> {
+                    StylePreferenceResponse emptyResponse = new StylePreferenceResponse();
+                    emptyResponse.setPreferredStyles(new ArrayList<>());
+                    emptyResponse.setFavoriteColors(new ArrayList<>());
+                    return emptyResponse;
+                });
     }
 }

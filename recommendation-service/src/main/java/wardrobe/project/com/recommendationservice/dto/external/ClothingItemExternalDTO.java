@@ -13,10 +13,14 @@ import java.util.UUID;
 public class ClothingItemExternalDTO {
     private UUID itemId;
     private UUID zoneId;
-    private UUID categoryId;
+    private CategoryDTO category;
     private UUID imageId;
     private String itemName;
     private String dominantColor;
     private String style;
     private Float confidenceScore;
+
+    public UUID getCategoryId() {
+        return category != null ? category.getCategoryId() : null;
+    }
 }

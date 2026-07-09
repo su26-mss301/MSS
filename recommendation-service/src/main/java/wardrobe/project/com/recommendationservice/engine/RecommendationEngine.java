@@ -11,28 +11,31 @@ import java.util.stream.Collectors;
 public class RecommendationEngine {
 
     private static final Map<String, List<String>> COLOR_DICTIONARY = Map.ofEntries(
-            Map.entry("#000000", List.of("đen", "black")),
-            Map.entry("#FFFFFF", List.of("trắng", "white")),
-            Map.entry("#1E3A5F", List.of("xanh đậm", "xanh dương", "blue", "navy")),
-            Map.entry("#EA580C", List.of("chàm", "cam", "orange")),
-            Map.entry("#F97316", List.of("tím", "cam", "purple", "orange")),
-            Map.entry("#EC4899", List.of("hồng", "pink")),
-            Map.entry("#EF4444", List.of("đỏ", "red")),
-            Map.entry("#F59E0B", List.of("vàng", "yellow")),
-            Map.entry("#10B981", List.of("xanh lá", "green")),
-            Map.entry("#14B8A6", List.of("mòng két", "teal")),
-            Map.entry("#94A3B8", List.of("xám", "gray", "grey", "gainsboro")),
-            Map.entry("#92400E", List.of("nâu", "brown")),
-            Map.entry("#D4B896", List.of("be", "beige"))
+            Map.entry("BLACK", List.of("đen", "black")),
+            Map.entry("WHITE", List.of("trắng", "white")),
+            Map.entry("NAVY", List.of("xanh đậm", "xanh dương", "blue", "navy")),
+            Map.entry("CREAM", List.of("chàm", "cream", "kem")),
+            Map.entry("PURPLE", List.of("tím", "purple", "violet")),
+            Map.entry("PINK", List.of("hồng", "pink")),
+            Map.entry("RED", List.of("đỏ", "red")),
+            Map.entry("ORANGE", List.of("cam", "orange")),
+            Map.entry("YELLOW", List.of("vàng", "yellow")),
+            Map.entry("GREEN", List.of("xanh lá", "green")),
+            Map.entry("TURQUOISE", List.of("mòng két", "teal", "turquoise")),
+            Map.entry("GRAY", List.of("xám", "gray", "grey")),
+            Map.entry("BROWN", List.of("nâu", "brown")),
+            Map.entry("BEIGE", List.of("be", "beige"))
     );
 
     private static final Map<String, List<String>> STYLE_DICTIONARY = Map.of(
             "minimal", List.of("tối giản", "minimal"),
             "casual", List.of("thường ngày", "casual", "hằng ngày", "đi chơi"),
-            "business", List.of("công sở", "business", "lịch sự thoải mái", "họp"),
-            "formal", List.of("trang trọng", "formal", "lịch sự", "thanh lịch"),
-            "streetwear", List.of("đường phố", "streetwear", "bụi bặm"),
-            "sporty", List.of("thể thao", "sport", "năng động")
+            "office", List.of("công sở", "business", "lịch sự thoải mái", "họp", "office"),
+            "elegant", List.of("trang trọng", "formal", "lịch sự", "thanh lịch", "elegant"),
+            "street", List.of("đường phố", "streetwear", "bụi bặm", "street"),
+            "sporty", List.of("thể thao", "sport", "năng động", "sporty"),
+            "bohemian", List.of("bohemian", "tự do", "phóng khoáng", "nghệ thuật", "boho"),
+            "vintage", List.of("cổ điển", "retro", "vintage")
     );
 
     private boolean containsAny(String text, String... keywords) {
@@ -50,11 +53,17 @@ public class RecommendationEngine {
             float score = 1.0f;
 
             if (profile.getPreferredStyle() != null && item.getStyle() != null) {
-                String profileStyleKey = profile.getPreferredStyle().toLowerCase();
                 String itemStyle = item.getStyle().toLowerCase();
+                String[] preferredStyles = profile.getPreferredStyle().toLowerCase().split(",");
 
-                List<String> validKeywords = STYLE_DICTIONARY.getOrDefault(profileStyleKey, List.of(profileStyleKey));
-                boolean isStyleMatch = validKeywords.stream().anyMatch(itemStyle::contains);
+                boolean isStyleMatch = false;
+                for (String prefStyle : preferredStyles) {
+                    List<String> validKeywords = STYLE_DICTIONARY.getOrDefault(prefStyle.trim(), List.of(prefStyle.trim()));
+                    if (validKeywords.stream().anyMatch(itemStyle::contains)) {
+                        isStyleMatch = true;
+                        break;
+                    }
+                }
 
                 if (isStyleMatch) score += 5.0f;
             }
@@ -63,8 +72,8 @@ public class RecommendationEngine {
                 String itemColor = item.getDominantColor().toLowerCase();
                 boolean isColorMatch = false;
 
-                for (String hexColor : profile.getFavoriteColors()) {
-                    List<String> validColorNames = COLOR_DICTIONARY.getOrDefault(hexColor.toUpperCase(), List.of());
+                for (String feColorKey : profile.getFavoriteColors()) {
+                    List<String> validColorNames = COLOR_DICTIONARY.getOrDefault(feColorKey.toUpperCase(), List.of());
                     if (validColorNames.stream().anyMatch(itemColor::contains)) {
                         isColorMatch = true;
                         break;
