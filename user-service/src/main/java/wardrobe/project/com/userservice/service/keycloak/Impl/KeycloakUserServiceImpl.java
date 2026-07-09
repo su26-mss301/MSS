@@ -63,6 +63,29 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         return keycloakUserId;
     }
 
+    @Override
+    public void resetPasswordByEmail(String email, String newPassword) {
+        List<UserRepresentation> users = keycloakAdmin.realm(appRealm)
+                .users()
+                .searchByEmail(email, true);
+
+        if (users.isEmpty()) {
+            throw new RuntimeException("User not found in Keycloak");
+        }
+
+        String keycloakUserId = users.getFirst().getId();
+
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(newPassword);
+        credential.setTemporary(false);
+
+        keycloakAdmin.realm(appRealm)
+                .users()
+                .get(keycloakUserId)
+                .resetPassword(credential);
+    }
+
     private void assignRealmRole(String userId) {
         try {
             RoleRepresentation role = keycloakAdmin.realm(appRealm)

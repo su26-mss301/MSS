@@ -6,11 +6,13 @@ import wardrobe.project.com.userservice.entity.FriendGroup;
 import wardrobe.project.com.userservice.entity.User;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface FriendGroupRepository extends JpaRepository<FriendGroup, String> {
 
-    List<FriendGroup> findByOwnerAndActiveTrueOrderByCreatedAtDesc(User owner);
-
+    Optional<FriendGroup> findByGroupIdAndActiveTrue(String groupId);
     List<FriendGroup> findByActiveTrueOrderByCreatedAtDesc();
+
+    boolean existsByGroupIdAndActiveTrue(String groupId);
 }

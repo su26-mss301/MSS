@@ -60,9 +60,6 @@ public class UserMapper {
                     .shoeSize(profile.getShoeSize() != null ? profile.getShoeSize().toString() : null)
                     .fitPreference(profile.getFitPreference())
 
-                    .favoriteColors(profile.getFavoriteColors())
-                    .stylePreference(profile.getStylePreference())
-                    .lifestylePreference(profile.getLifestylePreference())
                     .occupation(profile.getOccupation());
         }
 

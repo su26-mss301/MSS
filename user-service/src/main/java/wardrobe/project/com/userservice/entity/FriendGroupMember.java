@@ -2,6 +2,7 @@ package wardrobe.project.com.userservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import wardrobe.project.com.userservice.enums.FriendGroupMemberStatus;
 import wardrobe.project.com.userservice.enums.FriendGroupRole;
 
 @Getter
@@ -40,6 +41,10 @@ public class FriendGroupMember extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean active;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private FriendGroupMemberStatus status;
 
     @Override
     protected void onCreate() {
