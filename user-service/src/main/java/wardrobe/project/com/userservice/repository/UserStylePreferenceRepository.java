@@ -11,5 +11,4 @@ import java.util.UUID;
 public interface UserStylePreferenceRepository extends JpaRepository<UserStylePreference, String> {
 
     Optional<UserStylePreference> findByUser(User user);
-    Optional<UserStylePreference> findByUserId(UUID userId);
 }

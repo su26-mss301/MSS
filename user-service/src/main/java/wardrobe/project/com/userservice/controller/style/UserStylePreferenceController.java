@@ -8,8 +8,6 @@ import wardrobe.project.com.userservice.dto.request.style.SaveStylePreferenceReq
 import wardrobe.project.com.userservice.dto.response.style.StylePreferenceResponse;
 import wardrobe.project.com.userservice.service.style.UserStylePreferenceService;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/style-preferences")
 @RequiredArgsConstructor
@@ -36,14 +34,6 @@ public class UserStylePreferenceController {
         return ApiResponse.success(
                 "Style preferences saved successfully",
                 response
-        );
-    }
-
-    @GetMapping("/user/{userId}")
-    public ApiResponse<StylePreferenceResponse> getUserPreferences(@PathVariable UUID userId) {
-        return ApiResponse.success(
-                "User style preferences retrieved successfully",
-                preferenceService.getUserPreferences(userId)
         );
     }
 }
