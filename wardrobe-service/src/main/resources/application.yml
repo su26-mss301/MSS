@@ -1,14 +1,20 @@
 spring:
   application:
     name: wardrobe-service
-
+  datasource:
+    url: jdbc:postgresql://localhost:5434/wardrobe_service_db
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
 
 server:
-  port: 8082
+  port: ${SERVER_PORT:8082}
   servlet:
-    context-path: /api/v1
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
+    context-path: /api/v1/wardrobe

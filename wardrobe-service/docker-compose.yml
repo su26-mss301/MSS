@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  wardrobe-service-postgres:
+    image: postgres:16
+    container_name: wardrobe-service-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: wardrobe_service_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5434:5432"
+    volumes:
+      - wardrobe_service_postgres_data:/var/lib/postgresql/data
+    networks:
+      - smart-wardrobe-network
+
+volumes:
+  wardrobe_service_postgres_data:
+
+networks:
+  smart-wardrobe-network:
+    driver: bridge

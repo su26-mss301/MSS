@@ -2,12 +2,75 @@ spring:
   application:
     name: user-service
 
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${APP_EMAIL}
+    password: ${APP_PASSWORD}
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  datasource:
+    url: jdbc:postgresql://localhost:5435/user_service_db
+    username: admin
+    password: admin123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_uDAME2CDM
+
 server:
   port: 8081
   servlet:
-    context-path: /api/v1
+    context-path: /api/v1/users
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
+    keycloak:
+      server-url: ${KEYCLOAK_SERVER_URL}
+      admin-realm: ${KEYCLOAK_ADMIN_REALM}
+      app-realm: ${KEYCLOAK_APP_REALM}
+
+      # dùng cho user login
+      client-id: ${KEYCLOAK_CLIENT_ID}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET}
+
+      # dùng cho admin API, nhưng dùng chung client
+      admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+
+
+app:
+  cookie:
+    secure: false
+    same-site: Lax
+  auth:
+    refresh-token-cookie-max-age-days: 8
+    id-token-cookie-max-age-minutes: 20
+    access-token-cookie-max-age-minutes: 20
+
+aws:
+  region: ${AWS_REGION}
+  s3:
+    bucket: ${AWS_S3_BUCKET_NAME}
+
+

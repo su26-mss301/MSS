@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+ultralytics
+torch
+torchvision
+opencv-python
+pillow
+python-dotenv
+webcolors
+scikit-learn
+SQLAlchemy
+psycopg2-binary
