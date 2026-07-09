@@ -108,19 +108,31 @@ public class RecommendationServiceImpl {
         profile.setId(userId);
         try {
             RestTemplate directRestTemplate = new RestTemplate();
-            String url = "http://localhost:8081/api/v1/users/me";
+            String url = "http://localhost:8081/api/v1/users/style-preferences/me";
             ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode dataNode = response.getBody().has("data") ? response.getBody().path("data") : response.getBody();
 
-                if (dataNode.hasNonNull("stylePreference")) {
-                    profile.setPreferredStyle(dataNode.path("stylePreference").asText());
-                } else if (dataNode.hasNonNull("style_preference")) {
-                    profile.setPreferredStyle(dataNode.path("style_preference").asText());
+                if (dataNode.hasNonNull("preferredStyles") && dataNode.path("preferredStyles").isArray()) {
+                    List<String> styles = new ArrayList<>();
+                    for (JsonNode styleNode : dataNode.path("preferredStyles")) {
+                        styles.add(styleNode.asText());
+                    }
+                    if (!styles.isEmpty()) {
+                        profile.setPreferredStyle(String.join(",", styles));
+                    }
                 }
 
-                log.info("DEBUG: User Profile Style Preference = {}", profile.getPreferredStyle());
+                if (dataNode.hasNonNull("favoriteColors") && dataNode.path("favoriteColors").isArray()) {
+                    List<String> colors = new ArrayList<>();
+                    for (JsonNode colorNode : dataNode.path("favoriteColors")) {
+                        colors.add(colorNode.asText());
+                    }
+                    profile.setFavoriteColors(colors);
+                }
+
+                log.info("DEBUG: Khớp thành công toàn bộ sở thích phong cách: {}", profile.getPreferredStyle());
                 return profile;
             }
         } catch (Exception e) {
@@ -189,30 +201,14 @@ public class RecommendationServiceImpl {
         List<UUID> memberIds = new ArrayList<>();
         try {
             RestTemplate directRestTemplate = new RestTemplate();
-            String url = "http://localhost:8081/api/v1/users/friend-groups/user/" + userId;
+            String url = "http://localhost:8081/api/v1/users/friend-groups/" + groupId + "/detail";
             ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode dataNode = response.getBody().path("data");
-                if (dataNode.isArray() && dataNode.size() > 0) {
-                    JsonNode members = dataNode.get(0).path("members");
-                    if (members.isArray()) {
-                        for (JsonNode m : members) {
-                            memberIds.add(UUID.fromString(m.path("userId").asText()));
-                        }
-                    }
-                }
-            }
-
-            if (memberIds.isEmpty() && groupId != null && !groupId.toString().equals("999e4567-e89b-12d3-a456-426614174999")) {
-                String fallbackUrl = "http://localhost:8081/api/v1/users/friend-groups/" + groupId;
-                ResponseEntity<JsonNode> fallbackRes = directRestTemplate.exchange(fallbackUrl, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
-                if (fallbackRes.getStatusCode().is2xxSuccessful() && fallbackRes.getBody() != null) {
-                    JsonNode members = fallbackRes.getBody().path("data").path("members");
-                    if (members.isArray()) {
-                        for (JsonNode m : members) {
-                            memberIds.add(UUID.fromString(m.path("userId").asText()));
-                        }
+                JsonNode membersNode = response.getBody().path("data").path("members");
+                if (membersNode.isArray()) {
+                    for (JsonNode m : membersNode) {
+                        memberIds.add(UUID.fromString(m.path("userId").asText()));
                     }
                 }
             }
@@ -228,13 +224,12 @@ public class RecommendationServiceImpl {
             RestTemplate directRestTemplate = new RestTemplate();
             for (UUID mId : memberIds) {
                 try {
-                    String memberUrl = "http://localhost:8081/api/v1/users/" + mId;
+                    String memberUrl = "http://localhost:8081/api/v1/users/style-preferences/user/" + mId;
                     ResponseEntity<JsonNode> res = directRestTemplate.exchange(memberUrl, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
                     if (res.getStatusCode().is2xxSuccessful() && res.getBody() != null) {
-                        JsonNode data = res.getBody().path("data");
-                        String style = data.hasNonNull("stylePreference") ? data.path("stylePreference").asText() :
-                                data.hasNonNull("style_preference") ? data.path("style_preference").asText() : null;
-                        if (style != null && !style.trim().isEmpty()) {
+                        JsonNode stylesNode = res.getBody().path("data").path("preferredStyles");
+                        if (stylesNode.isArray() && !stylesNode.isEmpty()) {
+                            String style = stylesNode.get(0).asText();
                             frequencyMap.put(style.toLowerCase(), frequencyMap.getOrDefault(style.toLowerCase(), 0L) + 1);
                         }
                     }
@@ -250,7 +245,7 @@ public class RecommendationServiceImpl {
                 .collect(Collectors.toList());
 
         if (trends.isEmpty()) {
-            trends.addAll(List.of("casual", "formal"));
+            trends.addAll(List.of("casual", "minimal", "streetwear"));
         }
         return trends;
     }

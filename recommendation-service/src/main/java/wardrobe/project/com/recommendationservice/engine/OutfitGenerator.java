@@ -1,44 +1,19 @@
 package wardrobe.project.com.recommendationservice.engine;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 import wardrobe.project.com.recommendationservice.dto.external.ClothingItemExternalDTO;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OutfitGenerator {
 
-    private final RestTemplate restTemplate;
-
-    private Map<UUID, String> fetchCategoryMap() {
-        Map<UUID, String> categoryMap = new HashMap<>();
-        try {
-            String url = "http://localhost:8082/api/v1/wardrobe/categories";
-            ResponseEntity<JsonNode> response = restTemplate.getForEntity(url, JsonNode.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode dataNode = response.getBody().path("data");
-                if (dataNode.isArray()) {
-                    for (JsonNode node : dataNode) {
-                        UUID id = UUID.fromString(node.path("categoryId").asText());
-                        String name = node.path("categoryName").asText().toLowerCase();
-                        categoryMap.put(id, name);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Lỗi khi fetch danh mục Category từ Wardrobe Service: {}", e.getMessage());
-        }
-        return categoryMap;
-    }
-
+    // Quy tắc phân nhóm: Dùng substring để phân loại đồ vào các "Layer" (Tầng)
     private String getBroadCategory(String categoryName) {
         if (categoryName == null || categoryName.isEmpty()) return "UNKNOWN";
         String name = categoryName.toLowerCase();
@@ -55,23 +30,19 @@ public class OutfitGenerator {
     public List<ClothingItemExternalDTO> generateBestOutfit(List<ClothingItemExternalDTO> rankedItems) {
         if (rankedItems == null || rankedItems.isEmpty()) return new ArrayList<>();
 
-        Map<UUID, String> categoryMap = fetchCategoryMap();
         Map<String, List<ClothingItemExternalDTO>> groupedItems = new HashMap<>();
 
         for (ClothingItemExternalDTO item : rankedItems) {
-            String catName = categoryMap.getOrDefault(item.getCategoryId(), "");
+            String catName = (item.getCategory() != null) ? item.getCategory().getCategoryName() : "";
             String broadCategory = getBroadCategory(catName);
             groupedItems.computeIfAbsent(broadCategory, k -> new ArrayList<>()).add(item);
         }
 
         List<ClothingItemExternalDTO> finalOutfit = new ArrayList<>();
 
-        // TRƯỜNG HỢP 1: MẶC ĐẦM
         if (groupedItems.containsKey("DRESS") && !groupedItems.get("DRESS").isEmpty()) {
             finalOutfit.add(groupedItems.get("DRESS").get(0));
-        }
-        // TRƯỜNG HỢP 2: MIX CƠ BẢN (1 ÁO + 1 QUẦN)
-        else {
+        } else {
             if (groupedItems.containsKey("TOP") && !groupedItems.get("TOP").isEmpty()) {
                 finalOutfit.add(groupedItems.get("TOP").get(0));
             }
@@ -88,11 +59,12 @@ public class OutfitGenerator {
             finalOutfit.add(groupedItems.get("SHOES").get(0));
         }
 
-        if (finalOutfit.isEmpty() && groupedItems.containsKey("UNKNOWN")) {
-            List<ClothingItemExternalDTO> unknowns = groupedItems.get("UNKNOWN");
-            finalOutfit.add(unknowns.get(0));
-            if (unknowns.size() > 1) {
-                finalOutfit.add(unknowns.get(1));
+        if (finalOutfit.size() < 3) {
+            for (ClothingItemExternalDTO item : rankedItems) {
+                if (finalOutfit.size() >= 3) break;
+                if (!finalOutfit.contains(item)) {
+                    finalOutfit.add(item);
+                }
             }
         }
 
