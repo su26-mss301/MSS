@@ -62,16 +62,4 @@ public class UserStylePreferenceServiceImpl implements UserStylePreferenceServic
                 .map(preferenceMapper::toResponse)
                 .orElseGet(() -> preferenceMapper.toResponse(null));
     }
-
-    @Override
-    public StylePreferenceResponse getUserPreferences(UUID userId) {
-        return preferenceRepository.findByUserId(userId)
-                .map(preferenceMapper::toResponse)
-                .orElseGet(() -> {
-                    StylePreferenceResponse emptyResponse = new StylePreferenceResponse();
-                    emptyResponse.setPreferredStyles(new ArrayList<>());
-                    emptyResponse.setFavoriteColors(new ArrayList<>());
-                    return emptyResponse;
-                });
-    }
 }
