@@ -1,11 +1,11 @@
-from fastapi import FastAPI, UploadFile, File, Depends
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from dotenv import load_dotenv
 import os
-import tempfile
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.detector import predict_image
+from app.image_utils import decode_upload_bytes
 from app.auth_context import CurrentUser, require_roles
 from app.database import get_db, engine
 from app.models.detection_log import DetectionLog, Base
@@ -55,22 +55,18 @@ async def detect(
         db: Session = Depends(get_db)
 ):
     """
-    Nhận diện trang phục từ ảnh upload.
+    Nhận diện trang phục từ ảnh upload (xử lý in-memory, không lưu disk).
 
     Yêu cầu: ROLE_USER hoặc ROLE_ADMIN (ADMIN tự động được phép
     do thứ bậc role trong require_roles).
     """
     content = await file.read()
-    suffix = os.path.splitext(file.filename or "image.jpg")[1] or ".jpg"
+    image = decode_upload_bytes(content)
 
-    tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
-    try:
-        with os.fdopen(tmp_fd, "wb") as tmp:
-            tmp.write(content)
-        detections = predict_image(tmp_path)
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+    if image is None:
+        raise HTTPException(status_code=400, detail="Không thể đọc ảnh upload")
+
+    detections = predict_image(image)
 
     if detections:
         primary = detections[0]
