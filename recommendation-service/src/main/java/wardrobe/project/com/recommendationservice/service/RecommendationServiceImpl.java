@@ -55,22 +55,45 @@ public class RecommendationServiceImpl {
         return (float) (avgScore * 10);
     }
 
+    private String getFriendlyVietnameseName(String rawText) {
+        if (rawText == null || rawText.trim().isEmpty()) return "Đa Phong Cách";
+
+        String primaryWord = rawText.split(",")[0].trim().toLowerCase();
+
+        return switch (primaryWord) {
+            case "minimal" -> "Tối Giản";
+            case "casual" -> "Thường Ngày";
+            case "office", "meeting" -> "Công Sở";
+            case "elegant" -> "Thanh Lịch";
+            case "street" -> "Đường Phố";
+            case "sporty" -> "Thể Thao";
+            case "bohemian" -> "Boho";
+            case "vintage" -> "Cổ Điển";
+            case "party" -> "Tiệc Tùng";
+            case "wedding" -> "Dự Tiệc";
+            case "travel" -> "Du Lịch";
+            case "interview" -> "Phỏng Vấn";
+            default -> "Thời Trang";
+        };
+    }
+
     private String generateDynamicName(List<ClothingItemExternalDTO> outfit, String context, String targetStyle) {
         if (outfit == null || outfit.isEmpty()) {
-            return "Trang Phục " + context;
+            return "Trang Phục Tự Động";
         }
 
-        if (targetStyle != null && !targetStyle.trim().isEmpty()) {
-            return "Set Đồ " + targetStyle + " (" + context + ")";
+        if ("Cá Nhân".equalsIgnoreCase(context)) {
+            String friendlyStyle = getFriendlyVietnameseName(targetStyle);
+            return "Set Đồ " + friendlyStyle + " (Cá Nhân)";
         }
-
-        String mainStyle = outfit.stream()
-                .map(ClothingItemExternalDTO::getStyle)
-                .filter(style -> style != null && !style.trim().isEmpty())
-                .findFirst()
-                .orElse("Đa Phong Cách");
-
-        return "Set Đồ " + mainStyle + " (" + context + ")";
+        else if ("Nhóm Bạn".equalsIgnoreCase(context)) {
+            String friendlyStyle = getFriendlyVietnameseName(targetStyle);
+            return "Xu Hướng " + friendlyStyle + " (Nhóm Bạn)";
+        }
+        else {
+            String friendlyEvent = getFriendlyVietnameseName(context);
+            return "Trang Phục " + friendlyEvent;
+        }
     }
 
     private String generateDynamicDescription(List<ClothingItemExternalDTO> outfit) {
