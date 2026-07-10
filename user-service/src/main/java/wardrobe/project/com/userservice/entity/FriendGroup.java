@@ -30,6 +30,14 @@ public class FriendGroup extends BaseEntity {
     @Column(length = 20)
     private String emoji;
 
+    /**
+     * Phong cách chủ đạo của nhóm (e.g. ["MINIMAL", "OFFICE"]).
+     * Dùng để lọc nhóm theo sở thích và auto-leave khi user đổi style.
+     * Nullable — nhóm không bắt buộc phải chọn style (với các nhóm cũ).
+     */
+    @Column(name = "primary_style", length = 500)
+    private String primaryStyle;
+
     @Column(name = "is_active", nullable = false)
     private Boolean active;
 
@@ -45,4 +53,4 @@ public class FriendGroup extends BaseEntity {
             emoji = "👗";
         }
     }
-}
+}

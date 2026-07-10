@@ -21,8 +21,8 @@ public class FriendGroupDetailResponse {
     private String myRole;
     private Integer memberCount;
 
-    private String primaryStyle;
-    private String primaryStyleLabel;
+    private List<String> primaryStyles;
+    private List<String> primaryStyleLabels;
 
     private String status;
     private Instant createdAt;

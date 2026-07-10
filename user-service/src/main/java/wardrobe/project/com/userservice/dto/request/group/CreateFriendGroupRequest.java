@@ -1,8 +1,11 @@
 package wardrobe.project.com.userservice.dto.request.group;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -19,4 +22,7 @@ public class CreateFriendGroupRequest {
     private String description;
 
     private String emoji;
+
+    @NotEmpty(message = "Phong cách chủ đạo không được để trống")
+    private List<String> primaryStyles;
 }

@@ -14,6 +14,8 @@ public enum ErrorCode {
     WARDROBE_ZONE_NOT_FOUND("Không tìm thấy ngăn tủ", HttpStatus.NOT_FOUND),
     CLOTHING_ITEM_NOT_FOUND("Không tìm thấy quần áo", HttpStatus.NOT_FOUND),
     PARENT_WARDROBE_DELETED("Tủ đồ chứa ngăn kéo này đang ở trong thùng rác. Vui lòng khôi phục tủ đồ trước!", HttpStatus.BAD_REQUEST),
+    SHARED_ITEM_NOT_FOUND("Không tìm thấy bản ghi chia sẻ", HttpStatus.NOT_FOUND),
+    SHARED_ITEM_FORBIDDEN("Bạn không có quyền thực hiện thao tác này", HttpStatus.FORBIDDEN),
     
     USER_ID_BLANK("User ID không được để trống", HttpStatus.BAD_REQUEST),
     WARDROBE_NAME_BLANK("Tên tủ quần áo không được để trống", HttpStatus.BAD_REQUEST),

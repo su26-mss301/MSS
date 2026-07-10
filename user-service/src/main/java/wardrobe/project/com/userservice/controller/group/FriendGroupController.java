@@ -28,34 +28,37 @@ public class FriendGroupController {
     public ApiResponse<FriendGroupResponse> createGroup(
             @Valid @RequestBody CreateFriendGroupRequest request
     ) {
-
         FriendGroupResponse response = friendGroupService.createGroup(request);
-
         return ApiResponse.success(response);
     }
 
     @GetMapping("/my")
-    public ApiResponse<List<FriendGroupResponse>> getMyGroups(
-    ) {
+    public ApiResponse<List<FriendGroupResponse>> getMyGroups() {
         return ApiResponse.success(friendGroupService.getMyGroups());
     }
 
     @GetMapping("/discover")
-    public ApiResponse<List<FriendGroupResponse>> discoverGroups(
-    ) {
-
+    public ApiResponse<List<FriendGroupResponse>> discoverGroups() {
         return ApiResponse.success(friendGroupService.discoverGroups());
     }
-
-
 
     @GetMapping("/{groupId}/detail")
     public ApiResponse<FriendGroupDetailResponse> getGroupDetail(
             @PathVariable String groupId
     ) {
         FriendGroupDetailResponse response = friendGroupService.getGroupDetail(groupId);
-
         return ApiResponse.success(response);
+    }
+
+    /**
+     * Preview: danh sach nhom user se bi out neu doi sang styles duoc truyen vao.
+     * Vi du: GET /friend-groups/style-conflict?styles=MINIMAL,OFFICE
+     */
+    @GetMapping("/style-conflict")
+    public ApiResponse<List<FriendGroupResponse>> getStyleConflictGroups(
+            @RequestParam List<String> styles
+    ) {
+        return ApiResponse.success(friendGroupService.getStyleConflictGroups(styles));
     }
 
     @PostMapping("/{groupId}/invitations")
@@ -82,7 +85,6 @@ public class FriendGroupController {
         return ApiResponse.success(Map.of("message", "Group deleted successfully"));
     }
 
-
     @GetMapping("/invitations/me")
     public ApiResponse<List<FriendGroupInvitationResponse>> getMyInvitations() {
         return ApiResponse.success(friendGroupService.getMyPendingInvitations());
@@ -91,19 +93,13 @@ public class FriendGroupController {
     @PostMapping("/invitations/{invitationId}/accept")
     public ApiResponse<?> acceptInvitation(@PathVariable String invitationId) {
         friendGroupService.acceptInvitation(invitationId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Invitation accepted successfully"
-        ));
+        return ApiResponse.success(Map.of("message", "Invitation accepted successfully"));
     }
 
     @PostMapping("/invitations/{invitationId}/decline")
     public ApiResponse<?> declineInvitation(@PathVariable String invitationId) {
         friendGroupService.declineInvitation(invitationId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Invitation declined successfully"
-        ));
+        return ApiResponse.success(Map.of("message", "Invitation declined successfully"));
     }
 
     @DeleteMapping("/{groupId}/invitations/{invitationId}")
@@ -112,10 +108,7 @@ public class FriendGroupController {
             @PathVariable String invitationId
     ) {
         friendGroupService.cancelInvitation(groupId, invitationId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Invitation cancelled successfully"
-        ));
+        return ApiResponse.success(Map.of("message", "Invitation cancelled successfully"));
     }
 
     @PostMapping("/{groupId}/join-requests")
@@ -124,10 +117,7 @@ public class FriendGroupController {
             @RequestBody CreateFriendGroupJoinRequest request
     ) {
         friendGroupService.requestToJoinGroup(groupId, request);
-
-        return ApiResponse.success(Map.of(
-                "message", "Yêu cầu tham gia đã được gửi"
-        ));
+        return ApiResponse.success(Map.of("message", "Yeu cau tham gia da duoc gui"));
     }
 
     @GetMapping("/{groupId}/join-requests")
@@ -140,37 +130,25 @@ public class FriendGroupController {
     @PostMapping("/join-requests/{requestId}/accept")
     public ApiResponse<?> acceptJoinRequest(@PathVariable String requestId) {
         friendGroupService.acceptJoinRequest(requestId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Đã chấp nhận yêu cầu tham gia"
-        ));
+        return ApiResponse.success(Map.of("message", "Da chap nhan yeu cau tham gia"));
     }
 
     @PostMapping("/join-requests/{requestId}/reject")
     public ApiResponse<?> rejectJoinRequest(@PathVariable String requestId) {
         friendGroupService.rejectJoinRequest(requestId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Đã từ chối yêu cầu tham gia"
-        ));
+        return ApiResponse.success(Map.of("message", "Da tu choi yeu cau tham gia"));
     }
 
     @PostMapping("/join-requests/{requestId}/cancel")
     public ApiResponse<?> cancelMyJoinRequest(@PathVariable String requestId) {
         friendGroupService.cancelMyJoinRequest(requestId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Đã hủy yêu cầu tham gia"
-        ));
+        return ApiResponse.success(Map.of("message", "Da huy yeu cau tham gia"));
     }
 
     @PostMapping("/{groupId}/leave")
     public ApiResponse<?> leaveGroup(@PathVariable String groupId) {
         friendGroupService.leaveGroup(groupId);
-
-        return ApiResponse.success(Map.of(
-                "message", "Bạn đã rời khỏi nhóm"
-        ));
+        return ApiResponse.success(Map.of("message", "Ban da roi khoi nhom"));
     }
 
     @PutMapping("/{groupId}")

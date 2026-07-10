@@ -8,6 +8,7 @@ import wardrobe.project.com.userservice.dto.response.group.FriendGroupDetailResp
 import wardrobe.project.com.userservice.dto.response.group.FriendGroupInvitationResponse;
 import wardrobe.project.com.userservice.dto.response.group.FriendGroupJoinRequestResponse;
 import wardrobe.project.com.userservice.dto.response.group.FriendGroupResponse;
+import wardrobe.project.com.userservice.entity.User;
 
 import java.util.List;
 
@@ -41,4 +42,9 @@ public interface FriendGroupService {
     void leaveGroup(String groupId);
     FriendGroupResponse updateGroup(String groupId, UpdateFriendGroupRequest request);
 
+    /** Trả về danh sách nhóm có style conflict với newStyles của user hiện tại (preview). */
+    List<FriendGroupResponse> getStyleConflictGroups(List<String> newStyles);
+
+    /** Tự động rời khỏi các nhóm không còn phù hợp sau khi user đổi style. */
+    void leaveGroupsWithStyleMismatch(User user, List<String> newStyles);
 }
