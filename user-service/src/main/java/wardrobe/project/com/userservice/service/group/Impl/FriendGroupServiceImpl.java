@@ -55,6 +55,11 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                                 ? "👗"
                                 : request.getEmoji()
                 )
+                .primaryStyle(
+                        request.getPrimaryStyles() == null || request.getPrimaryStyles().isEmpty()
+                                ? null
+                                : stylePreferenceMapper.toJson(request.getPrimaryStyles())
+                )
                 .active(true)
                 .build();
 
@@ -97,9 +102,20 @@ public class FriendGroupServiceImpl implements FriendGroupService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
+        // Lấy sở thích của user
+        List<String> myStyles = stylePreferenceRepository.findByUser(user)
+                .map(pref -> stylePreferenceMapper.fromJson(pref.getPreferredStyles()))
+                .orElse(List.of());
+
         return friendGroupRepository.findByActiveTrueOrderByCreatedAtDesc()
                 .stream()
                 .filter(group -> !friendGroupMemberRepository.existsByGroupAndUserAndActiveTrue(group, user))
+                // Nhóm chưa có style hoặc có style thuộc sở thích của user
+                .filter(group -> {
+                    if (group.getPrimaryStyle() == null) return true;
+                    List<String> groupStyles = stylePreferenceMapper.fromJson(group.getPrimaryStyle());
+                    return groupStyles.stream().anyMatch(myStyles::contains);
+                })
                 .map(group -> toResponse(group, null))
                 .toList();
     }
@@ -171,13 +187,10 @@ public class FriendGroupServiceImpl implements FriendGroupService {
         List<GroupStyleStatResponse> commonStyles = buildCommonStyles(members);
         List<String> colorPalette = buildColorPalette(members);
 
-        String primaryStyle = commonStyles.isEmpty()
-                ? null
-                : commonStyles.getFirst().getStyleName();
-
-        String primaryStyleLabel = commonStyles.isEmpty()
-                ? null
-                : commonStyles.getFirst().getLabel();
+        List<String> primaryStyles = stylePreferenceMapper.fromJson(group.getPrimaryStyle());
+        List<String> primaryStyleLabels = primaryStyles.stream()
+                .map(this::toStyleLabel)
+                .toList();
 
         List<GroupActiveMemberResponse> activeMembers = members.stream()
                 .limit(5)
@@ -195,8 +208,8 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                 .emoji(group.getEmoji())
                 .myRole(myMember.getRole().name())
                 .memberCount(members.size())
-                .primaryStyle(primaryStyle)
-                .primaryStyleLabel(primaryStyleLabel)
+                .primaryStyles(primaryStyles)
+                .primaryStyleLabels(primaryStyleLabels)
                 .status(Boolean.TRUE.equals(group.getActive()) ? "Hoạt Động" : "Không Hoạt Động")
                 .createdAt(group.getCreatedAt())
                 .commonStyles(commonStyles)
@@ -812,5 +825,63 @@ public class FriendGroupServiceImpl implements FriendGroupService {
                 .expiredAt(invitation.getExpiredAt())
                 .createdAt(invitation.getCreatedAt())
                 .build();
+    }
+
+    // -------------------------------------------------------------------------
+    // Style-conflict helpers (dùng cho auto-leave khi đổi style preference)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Trả về danh sách nhóm mà user đang tham gia (MEMBER / ADMIN, không phải OWNER)
+     * có primaryStyle không nằm trong tập newStyles mới của user.
+     * Chỉ tính những nhóm đã đặt primaryStyle (nullable → bỏ qua).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<FriendGroupResponse> getStyleConflictGroups(List<String> newStyles) {
+        User currentUser = getCurrentUser();
+
+        return friendGroupMemberRepository
+                .findByUserAndActiveTrueOrderByCreatedAtDesc(currentUser)
+                .stream()
+                // Chỉ member / admin, không phải owner
+                .filter(m -> m.getRole() != FriendGroupRole.OWNER)
+                // Nhóm phải có primaryStyle
+                .filter(m -> m.getGroup().getPrimaryStyle() != null)
+                // primaryStyle không nằm trong newStyles
+                .filter(m -> {
+                    List<String> groupStyles = stylePreferenceMapper.fromJson(m.getGroup().getPrimaryStyle());
+                    return groupStyles.stream().noneMatch(newStyles::contains);
+                })
+                .map(m -> toResponse(m.getGroup(), m.getRole()))
+                .toList();
+    }
+
+    /**
+     * Tự động kick user ra khỏi các nhóm không còn phù hợp với style mới.
+     * Được gọi sau khi user lưu preferences thành công.
+     */
+    @Override
+    @Transactional
+    public void leaveGroupsWithStyleMismatch(User user, List<String> newStyles) {
+        List<FriendGroupMember> membershipsToLeave = friendGroupMemberRepository
+                .findByUserAndActiveTrueOrderByCreatedAtDesc(user)
+                .stream()
+                .filter(m -> m.getRole() != FriendGroupRole.OWNER)
+                .filter(m -> m.getGroup().getPrimaryStyle() != null)
+                .filter(m -> {
+                    List<String> groupStyles = stylePreferenceMapper.fromJson(m.getGroup().getPrimaryStyle());
+                    return groupStyles.stream().noneMatch(newStyles::contains);
+                })
+                .toList();
+
+        for (FriendGroupMember member : membershipsToLeave) {
+            member.setActive(false);
+            member.setStatus(FriendGroupMemberStatus.LEFT);
+        }
+
+        if (!membershipsToLeave.isEmpty()) {
+            friendGroupMemberRepository.saveAll(membershipsToLeave);
+        }
     }
 }

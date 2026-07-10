@@ -12,10 +12,10 @@ import wardrobe.project.com.userservice.entity.UserStylePreference;
 import wardrobe.project.com.userservice.mapper.UserStylePreferenceMapper;
 import wardrobe.project.com.userservice.repository.UserRepository;
 import wardrobe.project.com.userservice.repository.UserStylePreferenceRepository;
+import wardrobe.project.com.userservice.service.group.FriendGroupService;
 import wardrobe.project.com.userservice.service.style.UserStylePreferenceService;
 
-import java.util.ArrayList;
-import java.util.UUID;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +24,7 @@ public class UserStylePreferenceServiceImpl implements UserStylePreferenceServic
     private final UserRepository userRepository;
     private final UserStylePreferenceRepository preferenceRepository;
     private final UserStylePreferenceMapper preferenceMapper;
+    private final FriendGroupService friendGroupService;
 
     @Override
     @Transactional
@@ -32,7 +33,7 @@ public class UserStylePreferenceServiceImpl implements UserStylePreferenceServic
         String email = authContext.requireEmail();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new RuntimeException("Khong tim thay nguoi dung"));
 
         UserStylePreference preference = preferenceRepository.findByUser(user)
                 .orElseGet(() -> UserStylePreference.builder()
@@ -46,6 +47,15 @@ public class UserStylePreferenceServiceImpl implements UserStylePreferenceServic
 
         UserStylePreference saved = preferenceRepository.save(preference);
 
+        // Auto-leave: kick user ra khoi cac nhom co primaryStyle khong con trong new preferred styles
+        List<String> newStyles = request.getPreferredStyles() != null
+                ? request.getPreferredStyles()
+                : List.of();
+
+        if (!newStyles.isEmpty()) {
+            friendGroupService.leaveGroupsWithStyleMismatch(user, newStyles);
+        }
+
         return preferenceMapper.toResponse(saved);
     }
 
@@ -56,7 +66,7 @@ public class UserStylePreferenceServiceImpl implements UserStylePreferenceServic
         String email = authContext.requireEmail();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+                .orElseThrow(() -> new RuntimeException("Khong tim thay nguoi dung"));
 
         return preferenceRepository.findByUser(user)
                 .map(preferenceMapper::toResponse)
