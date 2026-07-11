@@ -129,15 +129,13 @@ public class StorageServiceImpl implements StorageService {
     @Override
     @Transactional(readOnly = true)
     public Image getImageInfo(UUID id, String userId) {
-        return findOwnedImage(id, userId);
+        return findReadableImage(id, userId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public String getImageUrl(UUID id) throws Exception {
-        AuthContext authContext = AuthContextHolder.get();
-        String cognitoSub = authContext.requireUserId();
-        Image image = findOwnedImage(id,cognitoSub);
+    public String getImageUrl(UUID id, String userId) throws Exception {
+        Image image = findReadableImage(id, userId);
         return generatePresignedUrl(image.getImageUrl());
     }
 
@@ -204,6 +202,18 @@ public class StorageServiceImpl implements StorageService {
         return imageRepository.findByImageIdAndUserId(id, userId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Image not found or you do not have permission to access it"));
+    }
+
+    /** Tìm ảnh, cho phép đọc nếu là owner HOẶC ảnh đã DONE (cho phép share) */
+    private Image findReadableImage(UUID id, String userId) {
+        Image image = imageRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Image not found"));
+        
+        if (image.getStatus() == ImageStatus.DETECTING && !userId.equals(image.getUserId())) {
+            throw new IllegalArgumentException("You do not have permission to access this temporary image");
+        }
+        
+        return image;
     }
 
     private ImageResponse mapToResponse(Image image) {

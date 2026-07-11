@@ -1,5 +1,6 @@
 package wardrobe.project.com.storageservice.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -24,7 +25,7 @@ public class StorageController {
     private final StorageService storageService;
     private final JwtUtil jwtUtil;
 
-    private String extractUserId(jakarta.servlet.http.HttpServletRequest request) {
+    private String extractUserId(HttpServletRequest request) {
         String xAuthUserId = request.getHeader("X-Auth-User-Id");
         if (xAuthUserId != null && !xAuthUserId.isBlank()) {
             return xAuthUserId;
@@ -44,8 +45,7 @@ public class StorageController {
     // ─────────────────────────────────────────────────────────────────────────
     @PostMapping("/upload")
     public ResponseEntity<?> uploadImage(
-            @RequestParam("file") MultipartFile file,
-            jakarta.servlet.http.HttpServletRequest request) {
+            @RequestParam("file") MultipartFile file,HttpServletRequest request) {
         try {
             String userId = extractUserId(request);
             log.info("Upload request from user={}, file={}", userId, file.getOriginalFilename());
@@ -66,8 +66,7 @@ public class StorageController {
     // ─────────────────────────────────────────────────────────────────────────
     @PatchMapping("/images/{id}/confirm")
     public ResponseEntity<?> confirmImage(
-            @PathVariable UUID id,
-            jakarta.servlet.http.HttpServletRequest request) {
+            @PathVariable UUID id, HttpServletRequest request) {
         try {
             String userId = extractUserId(request);
             log.info("Confirm image id={} by user={}", id, userId);
@@ -87,8 +86,7 @@ public class StorageController {
     // Lấy tất cả ảnh DONE của user hiện tại
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/images")
-    public ResponseEntity<?> getAllImages(
-            jakarta.servlet.http.HttpServletRequest request) {
+    public ResponseEntity<?> getAllImages(HttpServletRequest request) {
         try {
             String userId = extractUserId(request);
             log.info("List images for user={}", userId);
@@ -111,8 +109,7 @@ public class StorageController {
     // ─────────────────────────────────────────────────────────────────────────
     @DeleteMapping("/images/{id}")
     public ResponseEntity<?> deleteImage(
-            @PathVariable UUID id,
-            jakarta.servlet.http.HttpServletRequest request) {
+            @PathVariable UUID id,HttpServletRequest request) {
         try {
             String userId = extractUserId(request);
             log.info("Delete image id={} by user={}", id, userId);
@@ -136,8 +133,7 @@ public class StorageController {
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/{id}")
     public ResponseEntity<?> getImageInfo(
-            @PathVariable UUID id,
-            jakarta.servlet.http.HttpServletRequest request) {
+            @PathVariable UUID id,HttpServletRequest request) {
         try {
             String userId = extractUserId(request);
             Image image = storageService.getImageInfo(id, userId);
@@ -157,9 +153,10 @@ public class StorageController {
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/url/{id}")
     public ResponseEntity<?> getImageUrl(
-            @PathVariable UUID id) {
+            @PathVariable UUID id,HttpServletRequest request) {
         try {
-            String url = storageService.getImageUrl(id);
+            String userId = extractUserId(request);
+            String url = storageService.getImageUrl(id, userId);
             return ResponseEntity.ok(url);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(e.getMessage().contains("permission") ? HttpStatus.FORBIDDEN : HttpStatus.UNAUTHORIZED)
@@ -177,10 +174,12 @@ public class StorageController {
 
     // GET /api/v1/storage/files/{id} - Redirects to presigned URL
     @GetMapping("/files/{id}")
-    public ResponseEntity<Void> redirectToFile(@PathVariable("id") UUID id) {
+    public ResponseEntity<Void> redirectToFile(
+            @PathVariable("id") UUID id,HttpServletRequest request) {
         log.info("Redirecting to image URL for ID: {}", id);
         try {
-            String url = storageService.getImageUrl(id);
+            String userId = extractUserId(request);
+            String url = storageService.getImageUrl(id, userId);
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header("Location", url)
                     .build();
