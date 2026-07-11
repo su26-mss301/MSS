@@ -241,7 +241,17 @@ public class RecommendationServiceImpl {
         return memberIds;
     }
 
-    private List<String> fetchGroupTrendingStyles(UUID userId, UUID groupId) {
+    private static class GroupInfo {
+        String groupName;
+        List<String> styles;
+
+        public GroupInfo(String groupName, List<String> styles) {
+            this.groupName = groupName;
+            this.styles = styles;
+        }
+    }
+
+    private GroupInfo fetchGroupInfo(UUID userId, UUID groupId) {
         try {
             RestTemplate directRestTemplate = new RestTemplate();
             String url = "http://localhost:8081/api/v1/users/friend-groups/" + groupId + "/detail";
@@ -261,8 +271,11 @@ public class RecommendationServiceImpl {
                     }
                 }
 
-                if (!isMember) {
-                    return null;
+                if (!isMember) return null;
+
+                String groupName = dataNode.path("groupName").asText();
+                if (groupName == null || groupName.isEmpty()) {
+                    groupName = "Bạn Bè";
                 }
 
                 List<String> trendingStyles = new ArrayList<>();
@@ -279,10 +292,10 @@ public class RecommendationServiceImpl {
                 if (trendingStyles.isEmpty()) {
                     trendingStyles.addAll(List.of("casual", "minimal"));
                 }
-                return trendingStyles;
+                return new GroupInfo(groupName, trendingStyles);
             }
         } catch (Exception e) {
-            log.warn("Lấy chi tiết và thống kê nhóm thất bại (có thể do sai GroupId hoặc không có quyền): {}", e.getMessage());
+            log.warn("Lấy chi tiết và thống kê nhóm thất bại: {}", e.getMessage());
         }
         return null;
     }
@@ -368,9 +381,9 @@ public class RecommendationServiceImpl {
 
     @Transactional
     public RecommendationResponseDTO generateCollaborative(UUID userId, UUID groupId) {
-        List<String> trendingStyles = fetchGroupTrendingStyles(userId, groupId);
+        GroupInfo groupInfo = fetchGroupInfo(userId, groupId);
 
-        if (trendingStyles == null) {
+        if (groupInfo == null) {
             log.warn("Người dùng {} chưa tham gia vào nhóm bạn {} (Hoặc GroupId không hợp lệ).", userId, groupId);
 
             OutfitResponseDTO noGroupOutfit = OutfitResponseDTO.builder()
@@ -394,14 +407,12 @@ public class RecommendationServiceImpl {
             return createEmptyRecommendationResponse(userId, "Nhóm Bạn");
         }
 
-        List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, trendingStyles);
+        List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, groupInfo.styles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
         float realScore = calculateRealScore(finalOutfit);
 
-        UserProfileExternalDTO profile = fetchUserProfile(userId);
-        String fallbackStyle = (profile.getPreferredStyle() != null) ? profile.getPreferredStyle() : "Xu Hướng";
-        String realName = generateDynamicName(finalOutfit, "Nhóm Bạn", fallbackStyle);
+        String realName = "Phong Cách " + groupInfo.groupName + " (Nhóm)";
 
         String realDesc = generateDynamicDescription(finalOutfit);
 
