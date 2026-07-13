@@ -1,4 +1,31 @@
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6380
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+
+    consumer:
+      group-id: user-service-keycloak-sync
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "wardrobe.project.com.userservice.event"
+
+    listener:
+      ack-mode: record
+
   application:
     name: user-service
 
@@ -38,8 +65,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_uDAME2CDM
-
+          issuer-uri: http://localhost:8180/realms/smart-wardrobe
 server:
   port: 8081
   servlet:
@@ -68,6 +94,12 @@ app:
     id-token-cookie-max-age-minutes: 20
     access-token-cookie-max-age-minutes: 20
 
+  default-admin:
+    enabled: ${DEFAULT_ADMIN_ENABLED}
+    email: ${DEFAULT_ADMIN_EMAIL}
+    username: ${DEFAULT_ADMIN_USERNAME}
+    password: ${DEFAULT_ADMIN_PASSWORD}
+    full-name: ${DEFAULT_ADMIN_FULL_NAME:System Admin}
 aws:
   region: ${AWS_REGION}
   s3:

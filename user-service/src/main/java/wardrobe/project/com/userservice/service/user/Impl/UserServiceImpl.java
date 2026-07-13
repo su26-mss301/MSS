@@ -4,6 +4,7 @@ import com.wardrobe.common.auth.AuthContext;
 import com.wardrobe.common.auth.AuthContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +14,7 @@ import wardrobe.project.com.userservice.dto.response.user.UserResponse;
 import wardrobe.project.com.userservice.entity.User;
 import wardrobe.project.com.userservice.entity.UserProfile;
 import wardrobe.project.com.userservice.enums.Gender;
+import wardrobe.project.com.userservice.enums.UserStatus;
 import wardrobe.project.com.userservice.mapper.UserMapper;
 import wardrobe.project.com.userservice.repository.UserProfileRepository;
 import wardrobe.project.com.userservice.repository.UserRepository;
@@ -184,6 +186,26 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         return userMapper.toUserResponse(savedUser);
+    }
+
+    @Transactional
+    public UserResponse syncCurrentUser(Jwt jwt) {
+        String userId = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+        String username = jwt.getClaimAsString("preferred_username");
+
+        User user = userRepository.findById(userId)
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .userId(userId)
+                            .email(email)
+                            .username(username)
+                            .status(UserStatus.ACTIVE)
+                            .build();
+                    return userRepository.save(newUser);
+                });
+
+        return userMapper.toUserResponse(user);
     }
 
     private boolean hasText(String value) {

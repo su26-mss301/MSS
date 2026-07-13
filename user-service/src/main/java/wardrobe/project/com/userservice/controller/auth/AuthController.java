@@ -7,6 +7,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import wardrobe.project.com.userservice.dto.ApiResponse;
 import wardrobe.project.com.userservice.dto.request.auth.*;
@@ -14,6 +16,8 @@ import wardrobe.project.com.userservice.dto.response.auth.KeycloakTokenResponse;
 import wardrobe.project.com.userservice.dto.response.auth.LoginResponse;
 import wardrobe.project.com.userservice.dto.response.auth.ResetPasswordRequest;
 import wardrobe.project.com.userservice.dto.response.auth.VerifyForgotPasswordOtpResponse;
+import wardrobe.project.com.userservice.dto.response.user.UserResponse;
+import wardrobe.project.com.userservice.entity.User;
 import wardrobe.project.com.userservice.service.auth.AuthService;
 import wardrobe.project.com.userservice.service.auth.ForgotPasswordService;
 import wardrobe.project.com.userservice.service.user.UserService;
@@ -195,6 +199,45 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/me/sync")
+    public ApiResponse<UserResponse> syncCurrentUser(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        UserResponse user = userService.syncCurrentUser(jwt);
+
+        return ApiResponse.success(user);
+
+    }
+
+    @PostMapping("/google/callback")
+    public ResponseEntity<?> googleCallback(
+            @Valid @RequestBody GoogleCallbackRequest request
+    ) {
+        KeycloakTokenResponse tokens =
+                authService.exchangeAuthorizationCode(
+                        request.getCode(),
+                        request.getRedirectUri()
+                );
+
+        ResponseCookie accessCookie = createCookie(
+                "access_token",
+                tokens.getAccessToken(),
+                getAccessTokenMaxAge(tokens)
+        );
+
+        ResponseCookie refreshCookie = createCookie(
+                "refresh_token",
+                tokens.getRefreshToken(),
+                getRefreshTokenMaxAge(tokens)
+        );
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(Map.of(
+                        "message", "Google login successful"
+                ));
+    }
     private ResponseEntity<?> unauthorizedAndClearCookies(String message) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .header(HttpHeaders.SET_COOKIE, clearCookie("access_token").toString())
@@ -213,4 +256,5 @@ public class AuthController {
                 ? Duration.ofSeconds(tokens.getRefreshExpiresIn())
                 : Duration.ofDays(refreshTokenCookieDays);
     }
+
 }

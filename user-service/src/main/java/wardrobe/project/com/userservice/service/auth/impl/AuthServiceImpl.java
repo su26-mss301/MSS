@@ -256,6 +256,58 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    public KeycloakTokenResponse exchangeAuthorizationCode(
+            String code,
+            String redirectUri
+    ) {
+        String tokenUrl = keycloakServerUrl
+                + "/realms/"
+                + keycloakRealm
+                + "/protocol/openid-connect/token";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+
+        body.add("grant_type", "authorization_code");
+        body.add("client_id", keycloakClientId);
+        body.add("code", code);
+        body.add("redirect_uri", redirectUri);
+
+        if (StringUtils.hasText(keycloakClientSecret)) {
+            body.add("client_secret", keycloakClientSecret);
+        }
+
+        HttpEntity<MultiValueMap<String, String>> requestEntity =
+                new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<KeycloakTokenResponse> response =
+                    restTemplate.postForEntity(
+                            tokenUrl,
+                            requestEntity,
+                            KeycloakTokenResponse.class
+                    );
+
+            if (response.getBody() == null) {
+                throw new RuntimeException("Keycloak returned empty token response");
+            }
+
+            return response.getBody();
+
+        } catch (HttpClientErrorException e) {
+            System.err.println("KEYCLOAK STATUS = " + e.getStatusCode());
+            System.err.println("KEYCLOAK RESPONSE = " + e.getResponseBodyAsString());
+
+            throw new RuntimeException(
+                    "Google login callback failed: "
+                            + e.getResponseBodyAsString()
+            );
+        }
+    }
+
     private String generateOtp() {
         int otp = ThreadLocalRandom.current().nextInt(100000, 1000000);
         return String.valueOf(otp);
