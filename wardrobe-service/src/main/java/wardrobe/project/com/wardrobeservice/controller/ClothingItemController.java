@@ -47,12 +47,14 @@ public class ClothingItemController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all clothing items")
-    public ResponseEntity<ApiResponse<List<ClothingItemResponseDTO>>> getAllClothingItems() {
+    @Operation(summary = "Get all clothing items of current user")
+    public ResponseEntity<ApiResponse<List<ClothingItemResponseDTO>>> getAllClothingItems(
+            @RequestHeader("X-Auth-User-Id") String userIdStr) {
+        UUID userId = UUID.fromString(userIdStr);
         return ResponseEntity.ok(ApiResponse.<List<ClothingItemResponseDTO>>builder()
                 .success(true)
-                .message("All clothing items fetched successfully")
-                .data(clothingItemService.getAllClothingItems())
+                .message("Clothing items of current user fetched successfully")
+                .data(clothingItemService.getAllClothingItems(userId))
                 .build());
     }
 
