@@ -15,4 +15,9 @@ public interface AuthService {
     public void logout(String refreshToken);
     KeycloakTokenResponse refresh(String refreshToken);
 
+    KeycloakTokenResponse exchangeAuthorizationCode(
+            String code,
+            String redirectUri
+    );
+
 }

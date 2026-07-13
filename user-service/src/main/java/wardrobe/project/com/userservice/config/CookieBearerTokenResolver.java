@@ -6,12 +6,35 @@ import org.springframework.security.oauth2.server.resource.web.BearerTokenResolv
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class CookieBearerTokenResolver implements BearerTokenResolver {
 
+    private static final List<String> PUBLIC_PATHS = List.of(
+            "/auth/login",
+            "/auth/register",
+            "/auth/confirm-register",
+            "/auth/resend-code",
+            "/auth/google/callback",
+            "/auth/refresh",
+            "/auth/forgot-password",
+            "/auth/verify-forgot-password-otp",
+            "/auth/reset-password"
+    );
+
     @Override
     public String resolve(HttpServletRequest request) {
+        String path = request.getRequestURI();
+
+        System.out.println("REQUEST PATH = " + path);
+
+        // API public không được cố xác thực access_token cũ
+        if (isPublicPath(path)) {
+            System.out.println("PUBLIC PATH - SKIP ACCESS TOKEN");
+            return null;
+        }
+
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -19,16 +42,12 @@ public class CookieBearerTokenResolver implements BearerTokenResolver {
             return authHeader.substring(7);
         }
 
-        String path = request.getRequestURI();
-        System.out.println("REQUEST PATH = " + path);
-
-        if (path.contains("/users/me")) {
-            System.out.println("USING ID TOKEN COOKIE");
-            return getCookieValue(request, "id_token");
-        }
-
         System.out.println("USING ACCESS TOKEN COOKIE");
         return getCookieValue(request, "access_token");
+    }
+
+    private boolean isPublicPath(String path) {
+        return PUBLIC_PATHS.stream().anyMatch(path::endsWith);
     }
 
     private String getCookieValue(HttpServletRequest request, String name) {

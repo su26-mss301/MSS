@@ -1,5 +1,6 @@
 package wardrobe.project.com.apigateway.filter;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -13,12 +14,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import wardrobe.project.com.apigateway.service.BlockedUserCacheService;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class KeycloakAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private static final String HEADER_ACTOR_TYPE = "X-Auth-Actor-Type";
@@ -31,6 +34,7 @@ public class KeycloakAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final String HEADER_REQUEST_ID = "X-Request-Id";
 
     private final ReactiveJwtDecoder jwtDecoder;
+    private final BlockedUserCacheService blockedUserCacheService;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     private final List<String> publicPaths = List.of(
@@ -42,9 +46,7 @@ public class KeycloakAuthGlobalFilter implements GlobalFilter, Ordered {
             "/actuator/**"
     );
 
-    public KeycloakAuthGlobalFilter(ReactiveJwtDecoder jwtDecoder) {
-        this.jwtDecoder = jwtDecoder;
-    }
+
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -68,13 +70,29 @@ public class KeycloakAuthGlobalFilter implements GlobalFilter, Ordered {
         }
 
         return jwtDecoder.decode(accessToken)
-                .flatMap(jwt -> validateAndForward(sanitizedExchange, chain, jwt))
-                .onErrorResume(ex -> writeError(
+                .flatMap(jwt -> checkBlockedAndForward(
                         sanitizedExchange,
-                        HttpStatus.UNAUTHORIZED,
-                        "AUTH_TOKEN_INVALID",
-                        "Invalid access token"
-                ));
+                        chain,
+                        jwt
+                ))
+                .onErrorResume(
+                        org.springframework.security.oauth2.jwt.JwtException.class,
+                        exception -> writeError(
+                                sanitizedExchange,
+                                HttpStatus.UNAUTHORIZED,
+                                "AUTH_TOKEN_INVALID",
+                                "Invalid access token"
+                        )
+                )
+                .onErrorResume(
+                        org.springframework.data.redis.RedisConnectionFailureException.class,
+                        exception -> writeError(
+                                sanitizedExchange,
+                                HttpStatus.SERVICE_UNAVAILABLE,
+                                "REDIS_UNAVAILABLE",
+                                "Authentication status service is unavailable"
+                        )
+                );
     }
 
     private Mono<Void> validateAndForward(
@@ -125,6 +143,41 @@ public class KeycloakAuthGlobalFilter implements GlobalFilter, Ordered {
                 .build();
 
         return chain.filter(exchange.mutate().request(mutatedRequest).build());
+    }
+
+    private Mono<Void> checkBlockedAndForward(
+            ServerWebExchange exchange,
+            GatewayFilterChain chain,
+            Jwt jwt
+    ) {
+        String userId = jwt.getSubject();
+
+        if (userId == null || userId.isBlank()) {
+            return writeError(
+                    exchange,
+                    HttpStatus.UNAUTHORIZED,
+                    "AUTH_USER_ID_MISSING",
+                    "Access token does not contain subject"
+            );
+        }
+
+        return blockedUserCacheService.isBlocked(userId)
+                .flatMap(blocked -> {
+                    if (Boolean.TRUE.equals(blocked)) {
+                        return writeError(
+                                exchange,
+                                HttpStatus.FORBIDDEN,
+                                "USER_BLOCKED",
+                                "User account is blocked or inactive"
+                        );
+                    }
+
+                    return validateAndForward(
+                            exchange,
+                            chain,
+                            jwt
+                    );
+                });
     }
 
     private Set<String> extractRoles(Jwt jwt) {
