@@ -63,8 +63,8 @@ public class ClothingItemServiceImpl implements ClothingItemService {
     }
 
     @Override
-    public List<ClothingItemResponseDTO> getAllClothingItems() {
-        return clothingItemRepository.findAll().stream()
+    public List<ClothingItemResponseDTO> getAllClothingItems(UUID userId) {
+        return clothingItemRepository.findByZone_Wardrobe_UserId(userId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

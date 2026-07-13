@@ -14,6 +14,9 @@ public interface ClothingItemRepository extends JpaRepository<ClothingItem, UUID
     List<ClothingItem> findByZone_ZoneId(UUID zoneId);
     List<ClothingItem> findByCategory_CategoryId(UUID categoryId);
 
+    /** Lấy tất cả clothing items thuộc wardrobe của một user cụ thể */
+    List<ClothingItem> findByZone_Wardrobe_UserId(UUID userId);
+
     @Modifying
     @Query(value = "UPDATE clothing_item SET deleted_at = NULL WHERE zone_id = :zoneId", nativeQuery = true)
     void restoreItemsByZoneId(UUID zoneId);
