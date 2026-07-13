@@ -27,3 +27,6 @@ server:
   servlet:
     context-path: /api/v1
 
+app:
+  services:
+    api-gateway-url: http://localhost:8080
