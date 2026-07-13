@@ -1,10 +1,12 @@
 package wardrobe.project.com.recommendationservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.wardrobe.common.auth.AuthContext;
+import com.wardrobe.common.auth.AuthContextHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -31,6 +33,9 @@ import wardrobe.project.com.recommendationservice.repository.OutfitRepository;
 import wardrobe.project.com.recommendationservice.repository.RecommendItemRepository;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,6 +50,10 @@ public class RecommendationServiceImpl {
     private final RecommendItemRepository recommendItemRepository;
     private final EventRepository eventRepository;
     private final RestTemplate restTemplate;
+    private final ExecutorService executorService = Executors.newFixedThreadPool(15);
+
+    @Value("${app.services.api-gateway-url}")
+    private String apiGatewayUrl;
 
     private float calculateRealScore(List<ClothingItemExternalDTO> outfit) {
         if (outfit == null || outfit.isEmpty()) return 0f;
@@ -104,35 +113,45 @@ public class RecommendationServiceImpl {
         return "Bộ trang phục được phối từ các vật phẩm thực tế trong tủ của bạn bao gồm: " + itemDetails + ".";
     }
 
-    private HttpEntity<String> createForwardingHeaders() {
+    private HttpHeaders getForwardingHeaders() {
         HttpHeaders headers = new HttpHeaders();
         try {
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
 
-                // Tự động chuyển tiếp toàn bộ header X-Auth-* (đã được common-auth xử lý)
-                java.util.Enumeration<String> headerNames = request.getHeaderNames();
-                while (headerNames != null && headerNames.hasMoreElements()) {
-                    String headerName = headerNames.nextElement();
-                    if (headerName.toLowerCase().startsWith("x-auth-")) {
-                        headers.set(headerName, request.getHeader(headerName));
-                    }
+                String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+                if (authHeader != null) {
+                    headers.set(HttpHeaders.AUTHORIZATION, authHeader);
+                }
+
+                String cookieHeader = request.getHeader(HttpHeaders.COOKIE);
+                if (cookieHeader != null) {
+                    headers.set(HttpHeaders.COOKIE, cookieHeader);
                 }
             }
         } catch (Exception e) {
-            log.warn("Lỗi khi lấy header nội bộ: ", e);
+            log.warn("Lỗi khi lấy request attributes: ", e);
         }
-        return new HttpEntity<>(headers);
+
+        AuthContext authContext = AuthContextHolder.getNullable();
+        if (authContext != null) {
+            if (authContext.getUserId() != null) headers.set("X-Auth-User-Id", authContext.getUserId());
+            if (authContext.getActorType() != null) headers.set("X-Auth-Actor-Type", authContext.getActorType().name());
+            if (authContext.getRole() != null) headers.set("X-Auth-Roles", authContext.getRole().name());
+        }
+
+        return headers;
     }
 
     private UserProfileExternalDTO fetchUserProfile(UUID userId) {
         UserProfileExternalDTO profile = new UserProfileExternalDTO();
         profile.setId(userId);
         try {
-            RestTemplate directRestTemplate = new RestTemplate();
-            String url = "http://localhost:8081/api/v1/users/style-preferences/me";
-            ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+            String url = apiGatewayUrl + "/api/v1/users/style-preferences/me";
+            HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
+
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode dataNode = response.getBody().has("data") ? response.getBody().path("data") : response.getBody();
@@ -164,50 +183,125 @@ public class RecommendationServiceImpl {
         return profile;
     }
 
-    private List<ClothingItemExternalDTO> fetchUserWardrobe(UUID userId) {
-        List<ClothingItemExternalDTO> allItems = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    public List<ClothingItemExternalDTO> fetchUserWardrobe(UUID userId) {
+
+        String wardrobeUrl = apiGatewayUrl + "/api/v1/wardrobe/wardrobes";
+
+        HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
+
         try {
-            HttpEntity<String> entity = createForwardingHeaders();
-            RestTemplate directRestTemplate = new RestTemplate();
+            ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(
+                    wardrobeUrl, HttpMethod.GET, entity, ApiResponse.class
+            );
+            ApiResponse response = responseEntity.getBody();
 
-            // GỌI TRỰC TIẾP WARDROBE-SERVICE Ở CỔNG 8082
-            String wardrobeUrl = "http://localhost:8082/api/v1/wardrobe/wardrobes";
-            ResponseEntity<JsonNode> wardrobeRes = directRestTemplate.exchange(wardrobeUrl, HttpMethod.GET, entity, JsonNode.class);
-            JsonNode wBody = wardrobeRes.getBody();
+            if (response == null || response.getData() == null) {
+                return Collections.emptyList();
+            }
 
-            if (wBody != null && wBody.hasNonNull("data")) {
-                for (JsonNode wNode : wBody.path("data")) {
-                    String wUserId = wNode.path("userId").asText();
-                    if (userId != null && !userId.toString().equalsIgnoreCase(wUserId)) {
-                        continue;
-                    }
+            List<Map<String, Object>> wardrobes = (List<Map<String, Object>>) response.getData();
+            if (wardrobes.isEmpty()) {
+                return Collections.emptyList();
+            }
 
-                    String wardrobeId = wNode.path("wardrobeId").asText();
+            List<CompletableFuture<List<ClothingItemExternalDTO>>> asyncTasks = new ArrayList<>();
 
-                    String zoneUrl = "http://localhost:8082/api/v1/wardrobe/wardrobe-zones/wardrobe/" + wardrobeId;
-                    ResponseEntity<JsonNode> zoneRes = directRestTemplate.exchange(zoneUrl, HttpMethod.GET, entity, JsonNode.class);
-                    JsonNode zBody = zoneRes.getBody();
+            for (Map<String, Object> wardrobe : wardrobes) {
+                Object wIdObj = wardrobe.get("wardrobeId");
+                if (wIdObj == null) wIdObj = wardrobe.get("id");
+                if (wIdObj == null) continue;
 
-                    if (zBody != null && zBody.hasNonNull("data")) {
-                        for (JsonNode zNode : zBody.path("data")) {
-                            String zoneId = zNode.path("zoneId").asText();
+                String wardrobeId = wIdObj.toString();
+                String zoneUrl = apiGatewayUrl + "/api/v1/wardrobe/wardrobe-zones/wardrobe/" + wardrobeId;
 
-                            String itemUrl = "http://localhost:8082/api/v1/wardrobe/clothing-items/zone/" + zoneId;
-                            ResponseEntity<ApiResponse<List<ClothingItemExternalDTO>>> itemRes = directRestTemplate.exchange(
-                                    itemUrl, HttpMethod.GET, entity,
-                                    new ParameterizedTypeReference<ApiResponse<List<ClothingItemExternalDTO>>>() {}
+                ResponseEntity<ApiResponse> zoneResponseEntity = restTemplate.exchange(
+                        zoneUrl, HttpMethod.GET, entity, ApiResponse.class
+                );
+                ApiResponse zoneResponse = zoneResponseEntity.getBody();
+
+                if (zoneResponse == null || zoneResponse.getData() == null) continue;
+
+                List<Map<String, Object>> zones = (List<Map<String, Object>>) zoneResponse.getData();
+
+                for (Map<String, Object> zone : zones) {
+                    Object zIdObj = zone.get("zoneId");
+                    if (zIdObj == null) zIdObj = zone.get("id");
+                    if (zIdObj == null) continue;
+
+                    String zoneId = zIdObj.toString();
+
+                    CompletableFuture<List<ClothingItemExternalDTO>> futureTask = CompletableFuture.supplyAsync(() -> {
+                        String itemUrl = apiGatewayUrl + "/api/v1/wardrobe/clothing-items/zone/" + zoneId;
+                        try {
+                            ResponseEntity<ApiResponse> itemResponseEntity = restTemplate.exchange(
+                                    itemUrl, HttpMethod.GET, entity, ApiResponse.class
                             );
-                            if (itemRes.getBody() != null && itemRes.getBody().getData() != null) {
-                                allItems.addAll(itemRes.getBody().getData());
+                            ApiResponse itemResponse = itemResponseEntity.getBody();
+
+                            if (itemResponse == null || itemResponse.getData() == null) {
+                                return Collections.emptyList();
                             }
+
+                            List<Map<String, Object>> itemsList = (List<Map<String, Object>>) itemResponse.getData();
+                            List<ClothingItemExternalDTO> parsedItems = new ArrayList<>();
+
+                            for (Map<String, Object> itemMap : itemsList) {
+                                ClothingItemExternalDTO itemDTO = new ClothingItemExternalDTO();
+                                if (itemMap.get("itemId") != null) {
+                                    itemDTO.setItemId(UUID.fromString(itemMap.get("itemId").toString()));
+                                }
+                                if (itemMap.get("zoneId") != null) {
+                                    itemDTO.setZoneId(UUID.fromString(itemMap.get("zoneId").toString()));
+                                }
+                                if (itemMap.get("itemName") != null) {
+                                    itemDTO.setItemName(itemMap.get("itemName").toString());
+                                }
+                                if (itemMap.get("dominantColor") != null) {
+                                    itemDTO.setDominantColor(itemMap.get("dominantColor").toString());
+                                }
+                                if (itemMap.get("style") != null) {
+                                    itemDTO.setStyle(itemMap.get("style").toString());
+                                }
+                                if (itemMap.get("imageId") != null) {
+                                    itemDTO.setImageId(UUID.fromString(itemMap.get("imageId").toString()));
+                                }
+                                if (itemMap.get("confidenceScore") != null) {
+                                    itemDTO.setConfidenceScore(Float.parseFloat(itemMap.get("confidenceScore").toString()));
+                                }
+
+                                if (itemMap.get("category") != null) {
+                                    Map<String, Object> catMap = (Map<String, Object>) itemMap.get("category");
+                                    wardrobe.project.com.recommendationservice.dto.external.CategoryDTO catDTO = new wardrobe.project.com.recommendationservice.dto.external.CategoryDTO();
+                                    if (catMap.get("categoryId") != null) {
+                                        catDTO.setCategoryId(UUID.fromString(catMap.get("categoryId").toString()));
+                                    }
+                                    if (catMap.get("categoryName") != null) {
+                                        catDTO.setCategoryName(catMap.get("categoryName").toString());
+                                    }
+                                    itemDTO.setCategory(catDTO);
+                                }
+                                parsedItems.add(itemDTO);
+                            }
+                            return parsedItems;
+                        } catch (Exception e) {
+                            log.error("Lỗi khi fetch items cho zone: " + zoneId, e);
+                            return Collections.emptyList();
                         }
-                    }
+                    }, executorService);
+
+                    asyncTasks.add(futureTask);
                 }
             }
-            return allItems;
+
+            return asyncTasks.stream()
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .collect(Collectors.toList());
+
         } catch (Exception e) {
-            log.error("LỖI KHI TRUY XUẤT DỮ LIỆU TỪ WARDROBE SERVICE: ", e);
-            return new ArrayList<>();
+            log.error("Lỗi hệ thống khi tải tủ đồ của người dùng: {}", userId, e);
+            return Collections.emptyList();
         }
     }
 
@@ -223,9 +317,9 @@ public class RecommendationServiceImpl {
     private List<UUID> fetchGroupMemberIds(UUID userId, UUID groupId) {
         List<UUID> memberIds = new ArrayList<>();
         try {
-            RestTemplate directRestTemplate = new RestTemplate();
-            String url = "http://localhost:8081/api/v1/users/friend-groups/" + groupId + "/detail";
-            ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+            String url = apiGatewayUrl + "/api/v1/users/friend-groups/" + groupId + "/detail";
+            HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode membersNode = response.getBody().path("data").path("members");
@@ -253,9 +347,9 @@ public class RecommendationServiceImpl {
 
     private GroupInfo fetchGroupInfo(UUID userId, UUID groupId) {
         try {
-            RestTemplate directRestTemplate = new RestTemplate();
-            String url = "http://localhost:8081/api/v1/users/friend-groups/" + groupId + "/detail";
-            ResponseEntity<JsonNode> response = directRestTemplate.exchange(url, HttpMethod.GET, createForwardingHeaders(), JsonNode.class);
+            String url = apiGatewayUrl + "/api/v1/users/friend-groups/" + groupId + "/detail";
+            HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode dataNode = response.getBody().path("data");
