@@ -21,6 +21,9 @@ public class KeycloakAdminProvisioningService {
     @Value("${server.servlet.keycloak.admin-realm}")
     private String realmName;
 
+    private static final String ADMIN_ROLE = "ROLE_ADMIN";
+
+
     public String createOrGetAdmin(
             String email,
             String username,
@@ -112,17 +115,17 @@ public class KeycloakAdminProvisioningService {
 
         try {
             adminRole = realm.roles()
-                    .get("ADMIN")
+                    .get("ROLE_ADMIN")
                     .toRepresentation();
         } catch (Exception exception) {
             adminRole = new RoleRepresentation();
-            adminRole.setName("ADMIN");
+            adminRole.setName("ROLE_ADMIN");
             adminRole.setDescription("Application administrator");
 
             realm.roles().create(adminRole);
 
             adminRole = realm.roles()
-                    .get("ADMIN")
+                    .get("ROLE_ADMIN")
                     .toRepresentation();
         }
 
@@ -133,7 +136,7 @@ public class KeycloakAdminProvisioningService {
                 .listAll()
                 .stream()
                 .anyMatch(role ->
-                        role.getName().equalsIgnoreCase("ADMIN")
+                        role.getName().equalsIgnoreCase("ROLE_ADMIN")
                 );
 
         if (!alreadyAssigned) {

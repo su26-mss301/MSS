@@ -3,12 +3,14 @@ package wardrobe.project.com.userservice;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import wardrobe.project.com.userservice.config.properties.DefaultAdminProperties;
 
 import java.util.TimeZone;
 
 @SpringBootApplication
 @EnableConfigurationProperties(DefaultAdminProperties.class)
+@EnableScheduling
 public class UserServiceApplication {
 
     public static void main(String[] args) {

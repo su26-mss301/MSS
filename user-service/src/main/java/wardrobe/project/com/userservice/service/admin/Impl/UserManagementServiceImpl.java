@@ -1,5 +1,7 @@
 package wardrobe.project.com.userservice.service.admin.Impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wardrobe.common.auth.AuthContext;
 import com.wardrobe.common.auth.AuthContextHolder;
 import lombok.RequiredArgsConstructor;
@@ -13,17 +15,21 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import wardrobe.project.com.userservice.dto.PageResponse;
 import wardrobe.project.com.userservice.dto.request.admin.UpdateUserAdminRequest;
 import wardrobe.project.com.userservice.dto.response.admin.UserManagementResponse;
+import wardrobe.project.com.userservice.entity.OutboxEvent;
 import wardrobe.project.com.userservice.entity.User;
+import wardrobe.project.com.userservice.enums.OutboxStatus;
 import wardrobe.project.com.userservice.enums.Role;
 import wardrobe.project.com.userservice.enums.UserStatus;
 import wardrobe.project.com.userservice.event.UserStatusChangedEvent;
 import wardrobe.project.com.userservice.exception.AppException;
 import wardrobe.project.com.userservice.exception.ErrorCode;
 import wardrobe.project.com.userservice.kafka.UserStatusEventProducer;
+import wardrobe.project.com.userservice.repository.OutboxEventRepository;
 import wardrobe.project.com.userservice.repository.UserRepository;
 import wardrobe.project.com.userservice.service.redis.BlockedUserCacheService;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +40,8 @@ public class UserManagementServiceImpl implements wardrobe.project.com.userservi
     private final UserRepository userRepository;
     private final BlockedUserCacheService blockedUserCacheService;
     private final UserStatusEventProducer userStatusEventProducer;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
 
     @Override
@@ -139,12 +147,32 @@ public class UserManagementServiceImpl implements wardrobe.project.com.userservi
         if (oldStatus != newStatus) {
             updateRedisAfterCommit(savedUser, newStatus);
 
-            publishStatusEventAfterCommit(
-                    savedUser,
-                    oldStatus,
-                    newStatus,
-                    authContext.getUserId()
-            );
+            UserStatusChangedEvent event =
+                    new UserStatusChangedEvent(
+                            UUID.randomUUID(),
+                            savedUser.getUserId(),
+                            oldStatus.name(),
+                            newStatus.name(),
+                            authContext.getUserId(),
+                            Instant.now()
+                    );
+
+            OutboxEvent outboxEvent = null;
+            try {
+                outboxEvent = OutboxEvent.builder()
+                        .aggregateType("USER")
+                        .aggregateId(savedUser.getUserId())
+                        .eventType("USER_STATUS_CHANGED")
+                        .payload(objectMapper.writeValueAsString(event))
+                        .status(OutboxStatus.PENDING)
+                        .retryCount(0)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+
+            outboxEventRepository.save(outboxEvent);
         }
 
         return UserManagementResponse.builder()
@@ -157,6 +185,7 @@ public class UserManagementServiceImpl implements wardrobe.project.com.userservi
                 .status(savedUser.getStatus().name())
                 .email(savedUser.getEmail())
                 .role(savedUser.getRole().name())
+                .createdAt(String.valueOf(savedUser.getCreatedAt()))
                 .build();
     }
 
