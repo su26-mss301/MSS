@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import wardrobe.project.com.wardrobeservice.dto.request.CategoryCreateRequestDTO;
 import wardrobe.project.com.wardrobeservice.dto.request.CategoryUpdateRequestDTO;
 import wardrobe.project.com.wardrobeservice.dto.response.ApiResponse;
+import wardrobe.project.com.wardrobeservice.dto.response.CategoryAnalyticsResponseDTO;
 import wardrobe.project.com.wardrobeservice.dto.response.CategoryResponseDTO;
+import wardrobe.project.com.wardrobeservice.dto.response.CategoryUsersResponseDTO;
 import wardrobe.project.com.wardrobeservice.service.CategoryService;
 
 import java.util.List;
@@ -25,6 +27,35 @@ import java.util.UUID;
 public class CategoryController {
 
     private final CategoryService categoryService;
+
+    @GetMapping("/analytics/users")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @Operation(summary = "Get users who own items in a category (admin only)",
+            description = "categoryName: one of 13 AI categories; granularity: day|month|year; date: YYYY-MM-DD")
+    public ResponseEntity<ApiResponse<CategoryUsersResponseDTO>> getCategoryUsers(
+            @RequestParam String categoryName,
+            @RequestParam(required = false, defaultValue = "month") String granularity,
+            @RequestParam(required = false) String date) {
+        return ResponseEntity.ok(ApiResponse.<CategoryUsersResponseDTO>builder()
+                .success(true)
+                .message("Category users fetched successfully")
+                .data(categoryService.getCategoryUsers(categoryName, granularity, date))
+                .build());
+    }
+
+    @GetMapping("/analytics")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @Operation(summary = "Get clothing item count per category (admin only)",
+            description = "granularity: day|month|year, date: YYYY-MM-DD (defaults to today)")
+    public ResponseEntity<ApiResponse<CategoryAnalyticsResponseDTO>> getCategoryAnalytics(
+            @RequestParam(required = false, defaultValue = "month") String granularity,
+            @RequestParam(required = false) String date) {
+        return ResponseEntity.ok(ApiResponse.<CategoryAnalyticsResponseDTO>builder()
+                .success(true)
+                .message("Category analytics fetched successfully")
+                .data(categoryService.getCategoryAnalytics(granularity, date))
+                .build());
+    }
 
     @PostMapping
     @Operation(summary = "Create a new category")
