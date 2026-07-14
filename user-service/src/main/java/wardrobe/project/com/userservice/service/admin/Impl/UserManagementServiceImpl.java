@@ -157,6 +157,7 @@ public class UserManagementServiceImpl implements wardrobe.project.com.userservi
                 .status(savedUser.getStatus().name())
                 .email(savedUser.getEmail())
                 .role(savedUser.getRole().name())
+                .createdAt(String.valueOf(savedUser.getCreatedAt()))
                 .build();
     }
 

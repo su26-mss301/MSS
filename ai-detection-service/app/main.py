@@ -1,25 +1,176 @@
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query, Form
 from dotenv import load_dotenv
 import os
+import json
+import uuid
+import math
+from datetime import datetime, timedelta
+from typing import Optional
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.detector import predict_image
 from app.image_utils import decode_upload_bytes
 from app.auth_context import CurrentUser, require_roles
-from app.database import get_db, engine
+from app.database import get_db, engine, migrate_detection_logs
 from app.models.detection_log import DetectionLog, Base
 
 load_dotenv()
 Base.metadata.create_all(bind=engine)
+migrate_detection_logs()
 
 APP_NAME = os.getenv("APP_NAME", "ai-detection-service")
 PORT = int(os.getenv("PORT", 8084))
+INACTIVE_RETENTION_DAYS = 7
+
+
+def _purge_expired_inactive_logs(db: Session) -> int:
+    """Xóa vĩnh viễn bản ghi đã thêm tủ ở trạng thái INACTIVE quá 7 ngày."""
+    cutoff = datetime.utcnow() - timedelta(days=INACTIVE_RETENTION_DAYS)
+    expired = db.query(DetectionLog).filter(
+        DetectionLog.record_status == "INACTIVE",
+        DetectionLog.wardrobe_status == "ADDED",
+        DetectionLog.deactivated_at.isnot(None),
+        DetectionLog.deactivated_at <= cutoff,
+    ).all()
+
+    for log in expired:
+        db.delete(log)
+
+    if expired:
+        db.commit()
+
+    return len(expired)
 
 app = FastAPI(
     title="AI Detection Service",
     version="1.0.0",
 )
+
+
+class MarkAddedRequest(BaseModel):
+    clothing_item_id: str
+    item_name: str
+    image_id: Optional[str] = None
+
+
+def _serialize_color(color) -> Optional[str]:
+    if color is None:
+        return None
+    if isinstance(color, str):
+        return color
+    return json.dumps(color, ensure_ascii=False)
+
+
+def _serialize_list(value) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _parse_json_field(value: Optional[str]):
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return value
+
+
+def _log_to_summary(log: DetectionLog) -> dict:
+    days_until_deletion = None
+    if log.record_status == "INACTIVE" and log.deactivated_at:
+        elapsed_days = (datetime.utcnow() - log.deactivated_at).days
+        days_until_deletion = max(0, INACTIVE_RETENTION_DAYS - elapsed_days)
+
+    return {
+        "id": log.id,
+        "userId": log.user_id,
+        "className": log.class_name or log.category,
+        "category": log.class_name or log.category,
+        "confidence": round(log.confidence, 1) if log.confidence is not None else 0,
+        "dominantColor": _parse_json_field(log.dominant_color),
+        "style": _parse_json_field(log.style),
+        "gender": log.gender,
+        "occasion": _parse_json_field(log.occasion),
+        "imageId": log.image_id,
+        "itemName": log.item_name,
+        "wardrobeStatus": log.wardrobe_status or "NOT_ADDED",
+        "clothingItemId": log.clothing_item_id,
+        "isPinned": bool(log.is_pinned),
+        "recordStatus": log.record_status or "ACTIVE",
+        "createdAt": log.created_at.isoformat() if log.created_at else None,
+        "addedAt": log.added_at.isoformat() if log.added_at else None,
+        "deactivatedAt": log.deactivated_at.isoformat() if log.deactivated_at else None,
+        "daysUntilDeletion": days_until_deletion,
+    }
+
+
+def _log_to_detail(log: DetectionLog) -> dict:
+    detail = _log_to_summary(log)
+    detail["status"] = log.status
+    detail["pinnedAt"] = log.pinned_at.isoformat() if log.pinned_at else None
+    return detail
+
+
+def _active_logs_filter():
+    return DetectionLog.record_status == "ACTIVE"
+
+
+def _added_visible_logs_filter():
+    return DetectionLog.record_status.in_(["ACTIVE", "INACTIVE"])
+
+
+def _build_page_response(items: list, page: int, size: int, total_items: int) -> dict:
+    total_pages = max(1, math.ceil(total_items / size)) if size > 0 else 1
+    return {
+        "items": items,
+        "page": page,
+        "size": size,
+        "totalItems": total_items,
+        "totalPages": total_pages,
+        "first": page == 0,
+        "last": page >= total_pages - 1,
+        "hasNext": page < total_pages - 1,
+        "hasPrevious": page > 0,
+    }
+
+
+def _create_detection_logs(
+    db: Session,
+    current_user: CurrentUser,
+    detections: list,
+    image_id: Optional[str],
+) -> list[DetectionLog]:
+    session_id = str(uuid.uuid4())
+    logs: list[DetectionLog] = []
+
+    for index, detection in enumerate(detections):
+        log = DetectionLog(
+            user_id=current_user.user_id,
+            session_id=session_id,
+            detection_index=index,
+            category=detection["class_name"],
+            class_name=detection["class_name"],
+            confidence=round(detection["confidence"] * 100, 2),
+            dominant_color=_serialize_color(detection.get("dominant_color")),
+            style=_serialize_list(detection.get("style")),
+            gender=detection.get("gender"),
+            occasion=_serialize_list(detection.get("occasion")),
+            image_id=image_id,
+            wardrobe_status="NOT_ADDED",
+            record_status="ACTIVE",
+            is_pinned=False,
+            status="success",
+        )
+        db.add(log)
+        logs.append(log)
+
+    db.flush()
+    return logs
 
 
 # ──────────────────────────────────────────────
@@ -51,6 +202,7 @@ def health():
 @app.post("/detect")
 async def detect(
         file: UploadFile = File(...),
+        image_id: Optional[str] = Form(default=None),
         current_user: CurrentUser = Depends(require_roles("ROLE_USER")),
         db: Session = Depends(get_db)
 ):
@@ -69,15 +221,11 @@ async def detect(
     detections = predict_image(image)
 
     if detections:
-        primary = detections[0]
-        log = DetectionLog(
-            user_id=current_user.user_id,
-            category=primary["class_name"],
-            confidence=primary["confidence"] * 100,
-            status="success"
-        )
-        db.add(log)
+        logs = _create_detection_logs(db, current_user, detections, image_id)
         db.commit()
+
+        for detection, log in zip(detections, logs):
+            detection["logId"] = log.id
 
     return {
         "success": True,
@@ -87,16 +235,208 @@ async def detect(
         "detections": detections
     }
 
+
+@app.patch("/detection-logs/{log_id}/mark-added")
+def mark_detection_added(
+        log_id: int,
+        body: MarkAddedRequest,
+        current_user: CurrentUser = Depends(require_roles("ROLE_USER")),
+        db: Session = Depends(get_db),
+):
+    log = db.query(DetectionLog).filter(DetectionLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi nhận diện")
+
+    if log.user_id != current_user.user_id and current_user.role != "ROLE_ADMIN":
+        raise HTTPException(status_code=403, detail="Bạn không có quyền cập nhật bản ghi này")
+
+    log.wardrobe_status = "ADDED"
+    log.clothing_item_id = body.clothing_item_id
+    log.item_name = body.item_name
+    log.added_at = datetime.utcnow()
+    if body.image_id:
+        log.image_id = body.image_id
+    db.commit()
+
+    return {
+        "success": True,
+        "data": _log_to_detail(log),
+    }
+
+
+@app.get("/admin/detection-history")
+def get_admin_detection_history(
+        tab: str = Query(default="not_added", pattern="^(not_added|added)$"),
+        page: int = Query(default=0, ge=0),
+        size: int = Query(default=10, ge=1, le=100),
+        sort: str = Query(default="newest", pattern="^(newest|oldest)$"),
+        current_user: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
+        db: Session = Depends(get_db),
+):
+    _purge_expired_inactive_logs(db)
+
+    if tab == "not_added":
+        base_query = db.query(DetectionLog).filter(
+            _active_logs_filter(),
+            DetectionLog.wardrobe_status == "NOT_ADDED",
+        )
+    else:
+        base_query = db.query(DetectionLog).filter(
+            _added_visible_logs_filter(),
+            DetectionLog.wardrobe_status == "ADDED",
+        )
+
+    total_items = base_query.count()
+
+    order_clauses = [DetectionLog.is_pinned.desc()]
+    if sort == "oldest":
+        order_clauses.append(DetectionLog.created_at.asc())
+    else:
+        order_clauses.append(DetectionLog.created_at.desc())
+
+    results = (
+        base_query
+        .order_by(*order_clauses)
+        .offset(page * size)
+        .limit(size)
+        .all()
+    )
+
+    not_added_count = db.query(DetectionLog).filter(
+        _active_logs_filter(),
+        DetectionLog.wardrobe_status == "NOT_ADDED",
+    ).count()
+
+    added_count = db.query(DetectionLog).filter(
+        _added_visible_logs_filter(),
+        DetectionLog.wardrobe_status == "ADDED",
+    ).count()
+
+    response = _build_page_response(
+        [_log_to_summary(log) for log in results],
+        page,
+        size,
+        total_items,
+    )
+    response["notAddedCount"] = not_added_count
+    response["addedCount"] = added_count
+    return response
+
+
+@app.get("/admin/detection-history/{log_id}")
+def get_admin_detection_detail(
+        log_id: int,
+        current_user: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
+        db: Session = Depends(get_db),
+):
+    log = db.query(DetectionLog).filter(DetectionLog.id == log_id).first()
+    if not log or log.record_status not in ("ACTIVE", "INACTIVE"):
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi nhận diện")
+
+    return _log_to_detail(log)
+
+
+@app.patch("/admin/detection-history/{log_id}/pin")
+def toggle_detection_pin(
+        log_id: int,
+        current_user: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
+        db: Session = Depends(get_db),
+):
+    log = db.query(DetectionLog).filter(DetectionLog.id == log_id).first()
+    if not log or log.record_status not in ("ACTIVE", "INACTIVE"):
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi nhận diện")
+
+    log.is_pinned = not bool(log.is_pinned)
+    log.pinned_at = datetime.utcnow() if log.is_pinned else None
+    db.commit()
+
+    return {
+        "success": True,
+        "data": _log_to_summary(log),
+    }
+
+
+@app.delete("/admin/detection-history/{log_id}")
+def hard_delete_detection(
+        log_id: int,
+        current_user: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
+        db: Session = Depends(get_db),
+):
+    """Xóa trực tiếp — chỉ áp dụng cho bản ghi chưa thêm tủ đồ."""
+    log = db.query(DetectionLog).filter(DetectionLog.id == log_id).first()
+    if not log or log.record_status != "ACTIVE":
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi nhận diện")
+
+    if log.wardrobe_status != "NOT_ADDED":
+        raise HTTPException(
+            status_code=400,
+            detail="Chỉ có thể xóa trực tiếp bản ghi chưa thêm vào tủ đồ",
+        )
+
+    db.delete(log)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Đã xóa bản ghi nhận diện",
+    }
+
+
+@app.patch("/admin/detection-history/{log_id}/toggle-status")
+def toggle_detection_status(
+        log_id: int,
+        current_user: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
+        db: Session = Depends(get_db),
+):
+    """Chuyển trạng thái hoạt động/ngừng hoạt động — chỉ áp dụng cho bản ghi đã thêm tủ."""
+    log = db.query(DetectionLog).filter(DetectionLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi nhận diện")
+
+    if log.wardrobe_status != "ADDED":
+        raise HTTPException(
+            status_code=400,
+            detail="Chỉ có thể chuyển trạng thái với bản ghi đã thêm vào tủ đồ",
+        )
+
+    if log.record_status == "ACTIVE":
+        log.record_status = "INACTIVE"
+        log.deactivated_at = datetime.utcnow()
+        log.is_pinned = False
+        log.pinned_at = None
+        message = "Đã chuyển sang ngừng hoạt động. Bản ghi sẽ tự xóa sau 7 ngày."
+    elif log.record_status == "INACTIVE":
+        log.record_status = "ACTIVE"
+        log.deactivated_at = None
+        message = "Đã kích hoạt lại bản ghi"
+    else:
+        raise HTTPException(status_code=400, detail="Bản ghi không thể chuyển trạng thái")
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": message,
+        "data": _log_to_summary(log),
+    }
+
+
 @app.get("/analytics/stats")
 def get_stats(db: Session = Depends(get_db)):
-    total = db.query(DetectionLog).count()
-    avg_conf = db.query(func.avg(DetectionLog.confidence)).scalar() or 0
-    high_acc = db.query(DetectionLog).filter(DetectionLog.confidence >= 90).count()
+    total = db.query(DetectionLog).filter(_active_logs_filter()).count()
+    avg_conf = db.query(func.avg(DetectionLog.confidence)).filter(
+        _active_logs_filter()
+    ).scalar() or 0
+    high_acc = db.query(DetectionLog).filter(
+        _active_logs_filter(),
+        DetectionLog.confidence >= 90,
+    ).count()
     return {
         "total": total,
         "avg_confidence": round(avg_conf, 1),
         "high_accuracy": high_acc
     }
+
 
 @app.get("/analytics/daily")
 def get_daily(db: Session = Depends(get_db)):
@@ -104,16 +444,18 @@ def get_daily(db: Session = Depends(get_db)):
         func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('day'),
         func.count(DetectionLog.id).label('detections'),
         func.avg(DetectionLog.confidence).label('accuracy')
-    ).group_by('day').order_by('day').limit(7).all()
+    ).filter(_active_logs_filter()).group_by('day').order_by('day').limit(7).all()
     return [{"day": r.day, "detections": r.detections, "accuracy": round(r.accuracy or 0, 1)} for r in results]
+
 
 @app.get("/analytics/monthly")
 def get_monthly(db: Session = Depends(get_db)):
     results = db.query(
         func.to_char(DetectionLog.created_at, 'YYYY-MM').label('month'),
         func.avg(DetectionLog.confidence).label('confidence')
-    ).group_by('month').order_by('month').limit(6).all()
+    ).filter(_active_logs_filter()).group_by('month').order_by('month').limit(6).all()
     return [{"month": r.month, "confidence": round(r.confidence or 0, 1)} for r in results]
+
 
 @app.get("/analytics/categories")
 def get_categories(db: Session = Depends(get_db)):
@@ -121,12 +463,19 @@ def get_categories(db: Session = Depends(get_db)):
         DetectionLog.category,
         func.count(DetectionLog.id).label('detections'),
         func.avg(DetectionLog.confidence).label('accuracy')
-    ).group_by(DetectionLog.category).all()
+    ).filter(_active_logs_filter()).group_by(DetectionLog.category).all()
     return [{"category": r.category, "detections": r.detections, "accuracy": round(r.accuracy or 0, 1)} for r in results]
+
 
 @app.get("/analytics/recent")
 def get_recent(db: Session = Depends(get_db)):
-    results = db.query(DetectionLog).order_by(DetectionLog.created_at.desc()).limit(10).all()
+    results = (
+        db.query(DetectionLog)
+        .filter(_active_logs_filter())
+        .order_by(DetectionLog.created_at.desc())
+        .limit(10)
+        .all()
+    )
     return [{
         "id": r.id,
         "item": r.category,
