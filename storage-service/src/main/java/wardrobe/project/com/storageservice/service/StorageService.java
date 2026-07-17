@@ -29,4 +29,6 @@ public interface StorageService {
 
     /** Tạo presigned URL từ S3 URL gốc (dùng nội bộ) */
     String generatePresignedUrl(String imageUrl);
+
+    void confirmImageFromEvent(String imageId);
 }

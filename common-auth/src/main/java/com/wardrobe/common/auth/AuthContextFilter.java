@@ -29,8 +29,9 @@ public class AuthContextFilter extends OncePerRequestFilter {
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**",
-            "/actuator/**",
             "/actuator/health",
+            "/actuator/health/**",
+            "/actuator/info",
             "/eureka/**",
             "/favicon.ico"
     );
@@ -72,10 +73,36 @@ public class AuthContextFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
+        String requestUri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        String servletPath = request.getServletPath();
 
-        return whitelistPatterns.stream()
-                .anyMatch(pattern -> pathMatcher.match(pattern, path));
+        String normalizedPath;
+
+        if (StringUtils.hasText(contextPath)
+                && requestUri.startsWith(contextPath)) {
+            normalizedPath = requestUri.substring(contextPath.length());
+        } else {
+            normalizedPath = requestUri;
+        }
+
+        boolean whitelisted = whitelistPatterns.stream()
+                .anyMatch(pattern ->
+                        pathMatcher.match(pattern, normalizedPath)
+                                || pathMatcher.match(pattern, servletPath)
+                                || pathMatcher.match(pattern, requestUri)
+                );
+
+        System.out.println(
+                "[AUTH-CONTEXT-FILTER] "
+                        + "requestUri=" + requestUri
+                        + ", contextPath=" + contextPath
+                        + ", servletPath=" + servletPath
+                        + ", normalizedPath=" + normalizedPath
+                        + ", whitelisted=" + whitelisted
+        );
+
+        return whitelisted;
     }
 
     @Override

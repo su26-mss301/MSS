@@ -1,4 +1,25 @@
 spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      group-id: storage-clothing-created-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.value.default.type: wardrobe.project.com.storageservice.event.ClothingCreatedEvent
+        spring.json.trusted.packages: wardrobe.project.com.storageservice.event
+        spring.json.use.type.headers: false
+
+    listener:
+      ack-mode: record
+
   application:
     name: storage-service
   datasource:
@@ -17,8 +38,18 @@ spring:
 server:
   port: 8085
   servlet:
-    context-path: /api/v1
+    context-path: /api/v1/storage
 
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: always
 
 aws:
   s3:
@@ -35,3 +66,8 @@ storage:
   cleanup:
     detecting-ttl-minutes: ${DETECTING_TTL_MINUTES:30}   # Xóa ảnh DETECTING sau N phút
     scheduler-interval-ms: ${CLEANUP_INTERVAL_MS:300000} # Chạy scheduler mỗi N ms (default: 5 phút)
+
+app:
+  kafka:
+    topic:
+      clothing-created: clothing-created

@@ -193,6 +193,27 @@ public class StorageServiceImpl implements StorageService {
         }
     }
 
+    @Override
+    @Transactional
+    public void confirmImageFromEvent(String imageId) {
+        if (imageId == null || imageId.isBlank()) {
+            return;
+        }
+
+        Image image = imageRepository
+                .findById(UUID.fromString(imageId))
+                .orElseThrow(() ->
+                        new RuntimeException("Image not found: " + imageId)
+                );
+
+        if (image.getStatus() == ImageStatus.DONE) {
+            return;
+        }
+
+        image.setStatus(ImageStatus.DONE);
+        imageRepository.save(image);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Internal helpers
     // ─────────────────────────────────────────────────────────────────────────

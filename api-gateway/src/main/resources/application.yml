@@ -1,7 +1,26 @@
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: always
+
 spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    admin:
+      fail-fast: false
+
+    properties:
+      request.timeout.ms: 3000
+      default.api.timeout.ms: 3000
   application:
     name: api-gateway
   data:
@@ -20,6 +39,9 @@ spring:
     gateway:
       server:
         webflux:
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 3s
           routes:
             - id: user-service
               uri: http://localhost:8081
@@ -47,3 +69,25 @@ spring:
               uri: http://localhost:8085
               predicates:
                 - Path=/api/v1/storage/**
+
+system-monitoring:
+  services:
+    - name: User Service
+      service-id: user-service
+      url: http://localhost:8081/api/v1/users/actuator/health
+
+    - name: Wardrobe Service
+      service-id: wardrobe-service
+      url: http://localhost:8082/api/v1/wardrobe/actuator/health
+
+    - name: Recommendation Service
+      service-id: recommendation-service
+      url: http://localhost:8083/api/v1/recommendation/actuator/health
+
+    - name: AI Detection Service
+      service-id: ai-detection-service
+      url: http://localhost:8084/health
+
+    - name: Storage Service
+      service-id: storage-service
+      url: http://localhost:8085/api/v1/storage/actuator/health

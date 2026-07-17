@@ -12,8 +12,9 @@ public class AuthContextConfig {
     @Bean
     public AuthContextFilter authContextFilter() {
         return new AuthContextFilter(List.of(
-                //những api muốn public
-                //VD: "/auth/**"
+                "/actuator/health",
+                "/actuator/health/**",
+                "/actuator/info"
         ));
     }
 }
