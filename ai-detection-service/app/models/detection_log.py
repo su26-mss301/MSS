@@ -1,6 +1,8 @@
 from sqlalchemy import Boolean, Column, Integer, String, Float, DateTime, Text
 from datetime import datetime
 from app.database import Base
+from app.enums.wardrobe_status import WardrobeStatus
+
 
 
 class DetectionLog(Base):
@@ -23,7 +25,12 @@ class DetectionLog(Base):
     image_id = Column(String, nullable=True)
 
     item_name = Column(String, nullable=True)
-    wardrobe_status = Column(String, default="NOT_ADDED", index=True)
+    wardrobe_status = Column(
+        String,
+        default=WardrobeStatus.NOT_ADDED.value,
+        nullable=False,
+        index=True
+    )
     clothing_item_id = Column(String, nullable=True)
     added_at = Column(DateTime, nullable=True)
 

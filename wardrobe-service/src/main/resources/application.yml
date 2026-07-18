@@ -1,11 +1,13 @@
 spring:
   application:
     name: wardrobe-service
+
   datasource:
     url: jdbc:postgresql://localhost:5434/wardrobe_service_db
     username: admin
     password: admin123
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -14,7 +16,85 @@ spring:
       hibernate:
         format_sql: true
 
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      group-id: wardrobe-clothing-creation-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+
+        spring.json.value.default.type: wardrobe.project.com.wardrobeservice.event.ClothingCreationRequestedEvent
+
+        spring.json.trusted.packages: wardrobe.project.com.wardrobeservice.event
+
+        spring.json.use.type.headers: false
+
+    listener:
+      ack-mode: record
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+      acks: all
+
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+
+app:
+  kafka:
+    topic:
+      clothing-creation-requested: clothing-creation-requested
+      clothing-created: clothing-created
+
+  outbox:
+    batch-size: 20
+    retention-days: 30
+
+      # Chạy lúc 02:00 mỗi ngày
+    cleanup-cron: "0 0 2 * * *"
+
+    # Scheduler chạy lại sau mỗi 3 giây
+    publisher-fixed-delay-ms: 3000
+
+    # Tối đa chờ Kafka xác nhận mỗi lần gửi
+    kafka-send-timeout-seconds: 10
+
+    # Kiểm tra event PROCESSING bị kẹt mỗi 60 giây
+    recovery-fixed-delay-ms: 5000
+
+    # Lần recovery đầu tiên chạy sau 30 giây
+    recovery-initial-delay-ms: 5000
+
+    # Event PROCESSING quá 5 phút được xem là bị kẹt
+    processing-timeout-seconds: 15
+
+    # Số event tối đa phục hồi mỗi lần
+    recovery-batch-size: 100
+
 server:
   port: ${SERVER_PORT:8082}
   servlet:
     context-path: /api/v1/wardrobe
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: always

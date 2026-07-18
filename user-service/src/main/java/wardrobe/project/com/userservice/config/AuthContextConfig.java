@@ -12,7 +12,10 @@ public class AuthContextConfig {
     @Bean
     public AuthContextFilter authContextFilter() {
         return new AuthContextFilter(List.of(
-                "/auth/**"
+                "/auth/**",
+                "/actuator/health",
+                "/actuator/health/**",
+                "/actuator/info"
         ));
     }
 }

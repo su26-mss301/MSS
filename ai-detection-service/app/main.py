@@ -8,21 +8,41 @@ from datetime import datetime, timedelta
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 from app.detector import predict_image
 from app.image_utils import decode_upload_bytes
 from app.auth_context import CurrentUser, require_roles
-from app.database import get_db, engine, migrate_detection_logs
+from app.database import (
+    get_db,
+    engine,
+    migrate_detection_logs,
+    migrate_outbox_events,
+)
 from app.models.detection_log import DetectionLog, Base
+from app.models.outbox_event import OutboxEvent
+
+from app.kafka.clothing_created_consumer import (
+    start_clothing_created_consumer,
+)
+
+from app.kafka.outbox_publisher import (
+    start_outbox_publisher,
+)
 
 load_dotenv()
 Base.metadata.create_all(bind=engine)
 migrate_detection_logs()
+migrate_outbox_events()
 
 APP_NAME = os.getenv("APP_NAME", "ai-detection-service")
 PORT = int(os.getenv("PORT", 8084))
 INACTIVE_RETENTION_DAYS = 7
+
+CLOTHING_REQUEST_TOPIC = os.getenv(
+    "KAFKA_CLOTHING_REQUEST_TOPIC",
+    "clothing-creation-requested",
+)
 
 
 def _purge_expired_inactive_logs(db: Session) -> int:
@@ -43,15 +63,32 @@ def _purge_expired_inactive_logs(db: Session) -> int:
 
     return len(expired)
 
+
 app = FastAPI(
     title="AI Detection Service",
     version="1.0.0",
 )
 
 
+@app.on_event("startup")
+def startup_event():
+    start_clothing_created_consumer()
+    start_outbox_publisher()
+
+
 class MarkAddedRequest(BaseModel):
     clothing_item_id: str
     item_name: str
+    image_id: Optional[str] = None
+
+
+class RequestAddClothingBody(BaseModel):
+    item_name: str
+    category_id: Optional[str] = None
+    zone_id: str
+    dominant_color: Optional[str] = None
+    style: Optional[str] = None
+    confidence_score: Optional[float] = None
     image_id: Optional[str] = None
 
 
@@ -140,10 +177,10 @@ def _build_page_response(items: list, page: int, size: int, total_items: int) ->
 
 
 def _create_detection_logs(
-    db: Session,
-    current_user: CurrentUser,
-    detections: list,
-    image_id: Optional[str],
+        db: Session,
+        current_user: CurrentUser,
+        detections: list,
+        image_id: Optional[str],
 ) -> list[DetectionLog]:
     session_id = str(uuid.uuid4())
     logs: list[DetectionLog] = []
@@ -186,10 +223,32 @@ def root():
 
 
 @app.get("/health")
-def health():
+def health(db: Session = Depends(get_db)):
+    database_status = "UP"
+    database_message = "Database connection is healthy"
+
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exception:
+        database_status = "DOWN"
+        database_message = f"Database connection failed: {str(exception)}"
+
+    overall_status = (
+        "UP"
+        if database_status == "UP"
+        else "DEGRADED"
+    )
+
     return {
         "service": APP_NAME,
-        "status": "UP"
+        "status": overall_status,
+        "components": {
+            "database": {
+                "status": database_status,
+                "message": database_message,
+            }
+        },
+        "checkedAt": datetime.utcnow().isoformat(),
     }
 
 
@@ -233,6 +292,143 @@ async def detect(
         "email": current_user.email,
         "role": current_user.role,
         "detections": detections
+    }
+
+
+@app.post(
+    "/detection-logs/{log_id}/request-add",
+    status_code=202,
+)
+def request_add_clothing(
+        log_id: int,
+        body: RequestAddClothingBody,
+        current_user: CurrentUser = Depends(require_roles("ROLE_USER")),
+        db: Session = Depends(get_db),
+):
+    print(
+        "[AI-OUTBOX-NEW] request_add_clothing đang chạy code mới, "
+        f"log_id={log_id}"
+    )
+    log = (
+        db.query(DetectionLog)
+        .filter(DetectionLog.id == log_id)
+        .first()
+    )
+
+    if not log:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy bản ghi nhận diện",
+        )
+
+    if (
+            log.user_id != current_user.user_id
+            and current_user.role != "ROLE_ADMIN"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn không có quyền cập nhật bản ghi này",
+        )
+
+    if log.wardrobe_status == "ADDED":
+        return {
+            "success": True,
+            "status": "ADDED",
+            "message": "Vật phẩm đã được thêm vào tủ đồ",
+            "clothingItemId": log.clothing_item_id,
+        }
+
+    if log.wardrobe_status == "WAITING_WARDROBE":
+        return {
+            "success": True,
+            "status": "WAITING_WARDROBE",
+            "message": "Yêu cầu đang được xử lý",
+        }
+
+    event_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+
+    event_payload = {
+        "eventId": event_id,
+        "eventType": "CLOTHING_CREATION_REQUESTED",
+        "detectionLogId": log.id,
+        "userId": current_user.user_id,
+        "itemName": body.item_name,
+        "categoryId": body.category_id,
+        "zoneId": body.zone_id,
+        "dominantColor": body.dominant_color,
+        "style": body.style,
+        "confidenceScore": body.confidence_score,
+        "imageId": body.image_id or log.image_id,
+        "createdAt": now.isoformat(),
+    }
+
+    try:
+        log.wardrobe_status = "WAITING_WARDROBE"
+        log.item_name = body.item_name
+
+        if body.image_id:
+            log.image_id = body.image_id
+
+        outbox_event = OutboxEvent(
+            event_id=event_id,
+            aggregate_type="DETECTION_LOG",
+            aggregate_id=str(log.id),
+            event_type="CLOTHING_CREATION_REQUESTED",
+            topic=CLOTHING_REQUEST_TOPIC,
+            event_key=event_id,
+            payload=json.dumps(
+                event_payload,
+                ensure_ascii=False,
+                default=str,
+            ),
+            status="PENDING",
+            retry_count=0,
+            created_at=now,
+            next_retry_at=now,
+        )
+
+        db.add(outbox_event)
+
+        print(
+            f"[AI-OUTBOX-NEW] chuẩn bị lưu outbox eventId={event_id}, "
+            f"detectionLogId={log.id}"
+        )
+
+        db.flush()
+
+        print(
+            f"[AI-OUTBOX-NEW] đã flush outbox id={outbox_event.id}, "
+            f"eventId={event_id}"
+        )
+
+        db.commit()
+
+        print(
+            f"[AI-OUTBOX-NEW] đã commit outbox eventId={event_id}"
+        )
+
+        db.refresh(log)
+
+    except Exception as exception:
+        db.rollback()
+
+        print(
+            f"[AI-OUTBOX-ERROR] Không thể lưu outbox: "
+            f"{type(exception).__name__}: {exception}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Không thể lưu yêu cầu thêm tủ đồ: {str(exception)}",
+        )
+
+    return {
+        "success": True,
+        "requestId": event_id,
+        "status": "WAITING_WARDROBE",
+        "message": "Yêu cầu đã được tiếp nhận và đang xử lý",
+        "data": _log_to_detail(log),
     }
 
 
@@ -464,7 +660,8 @@ def get_categories(db: Session = Depends(get_db)):
         func.count(DetectionLog.id).label('detections'),
         func.avg(DetectionLog.confidence).label('accuracy')
     ).filter(_active_logs_filter()).group_by(DetectionLog.category).all()
-    return [{"category": r.category, "detections": r.detections, "accuracy": round(r.accuracy or 0, 1)} for r in results]
+    return [{"category": r.category, "detections": r.detections, "accuracy": round(r.accuracy or 0, 1)} for r in
+            results]
 
 
 @app.get("/analytics/recent")

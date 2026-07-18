@@ -11,3 +11,4 @@ webcolors
 scikit-learn
 SQLAlchemy
 psycopg2-binary
+confluent-kafka

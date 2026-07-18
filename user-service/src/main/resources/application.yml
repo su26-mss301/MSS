@@ -86,6 +86,12 @@ server:
 
 
 app:
+  outbox:
+    # Giữ lịch sử event đã gửi trong 30 ngày
+    retention-days: 30
+
+    # Chạy lúc 02:00 mỗi ngày
+    cleanup-cron: "0 0 2 * * *"
   cookie:
     secure: false
     same-site: Lax
@@ -106,3 +112,12 @@ aws:
     bucket: ${AWS_S3_BUCKET_NAME}
 
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+  endpoint:
+    health:
+      show-details: always

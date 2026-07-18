@@ -11,6 +11,7 @@ import wardrobe.project.com.userservice.enums.OutboxStatus;
 import wardrobe.project.com.userservice.event.UserStatusChangedEvent;
 import wardrobe.project.com.userservice.kafka.KafkaTopics;
 import wardrobe.project.com.userservice.repository.OutboxEventRepository;
+import wardrobe.project.com.userservice.service.cleanup.OutboxCleanupService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.List;
 public class OutboxPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
+    private final OutboxCleanupService outboxCleanupService;
     private final KafkaTemplate<String, UserStatusChangedEvent> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
@@ -76,5 +78,20 @@ public class OutboxPublisher {
         }
 
         outboxEventRepository.save(outboxEvent);
+    }
+
+
+    @Scheduled(
+            cron = "${app.outbox.cleanup-cron:0 0 2 * * *}"
+    )
+    public void cleanupSentOutboxEvents() {
+        try {
+            outboxCleanupService.cleanupSentEvents();
+        } catch (Exception exception) {
+            log.error(
+                    "[USER-OUTBOX] Cleanup event SENT thất bại",
+                    exception
+            );
+        }
     }
 }
