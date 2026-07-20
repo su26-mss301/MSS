@@ -157,6 +157,79 @@ def _active_logs_filter():
     return DetectionLog.record_status == "ACTIVE"
 
 
+def _calculate_trend_percent(this_week: int, last_week: int) -> float:
+    if last_week == 0:
+        return 100.0 if this_week > 0 else 0.0
+    return round((this_week - last_week) * 1000 / last_week) / 10.0
+
+
+def _subtract_months(dt: datetime, months: int) -> datetime:
+    year = dt.year
+    month = dt.month - months
+    while month <= 0:
+        month += 12
+        year -= 1
+    return dt.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def _build_analytics_summary(db: Session) -> dict:
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
+
+    base_query = db.query(DetectionLog).filter(_active_logs_filter())
+    total = base_query.count()
+    this_week = base_query.filter(
+        DetectionLog.created_at >= week_ago,
+        DetectionLog.created_at < now,
+    ).count()
+    last_week = base_query.filter(
+        DetectionLog.created_at >= two_weeks_ago,
+        DetectionLog.created_at < week_ago,
+    ).count()
+
+    daily_from = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+    daily_rows = db.query(
+        func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('day'),
+        func.count(DetectionLog.id).label('count'),
+    ).filter(
+        _active_logs_filter(),
+        DetectionLog.created_at >= daily_from,
+    ).group_by('day').order_by('day').all()
+    daily_map = {row.day: row.count for row in daily_rows}
+
+    daily = []
+    for offset in range(6, -1, -1):
+        day = (now - timedelta(days=offset)).strftime('%Y-%m-%d')
+        daily.append({"date": day, "count": daily_map.get(day, 0)})
+
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_from = _subtract_months(month_start, 5)
+    monthly_rows = db.query(
+        func.to_char(DetectionLog.created_at, 'YYYY-MM').label('month'),
+        func.count(DetectionLog.id).label('count'),
+    ).filter(
+        _active_logs_filter(),
+        DetectionLog.created_at >= monthly_from,
+    ).group_by('month').order_by('month').all()
+    monthly_map = {row.month: row.count for row in monthly_rows}
+
+    monthly = []
+    for offset in range(5, -1, -1):
+        month_dt = _subtract_months(month_start, offset)
+        month_key = month_dt.strftime('%Y-%m')
+        monthly.append({"month": month_key, "count": monthly_map.get(month_key, 0)})
+
+    return {
+        "total": total,
+        "thisWeek": this_week,
+        "lastWeek": last_week,
+        "weekTrendPercent": _calculate_trend_percent(this_week, last_week),
+        "daily": daily,
+        "monthly": monthly,
+    }
+
+
 def _added_visible_logs_filter():
     return DetectionLog.record_status.in_(["ACTIVE", "INACTIVE"])
 
@@ -615,6 +688,14 @@ def toggle_detection_status(
         "message": message,
         "data": _log_to_summary(log),
     }
+
+
+@app.get("/admin/analytics/summary")
+def get_admin_analytics_summary(
+    db: Session = Depends(get_db),
+    _: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
+):
+    return _build_analytics_summary(db)
 
 
 @app.get("/analytics/stats")

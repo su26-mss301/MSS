@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/storage")
+@RequestMapping()
 @RequiredArgsConstructor
 @Slf4j
 public class StorageController {

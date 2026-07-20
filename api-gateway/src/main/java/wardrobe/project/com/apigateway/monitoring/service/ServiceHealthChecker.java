@@ -51,7 +51,7 @@ public class ServiceHealthChecker {
                             )
                             .build();
                 })
-                .timeout(Duration.ofSeconds(4))
+                .timeout(Duration.ofSeconds(15))
                 .onErrorResume(exception ->
                         Mono.just(
                                 ServiceHealthResponse.builder()

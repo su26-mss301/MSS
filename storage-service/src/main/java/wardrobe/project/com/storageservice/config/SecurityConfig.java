@@ -20,7 +20,7 @@ public class SecurityConfig {
                                 "/actuator/health/**",
                                 "/actuator/info"
                         ).permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .build();
     }

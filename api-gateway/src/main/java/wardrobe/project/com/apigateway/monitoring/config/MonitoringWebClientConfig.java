@@ -17,9 +17,9 @@ public class MonitoringWebClientConfig {
         HttpClient httpClient = HttpClient.create()
                 .option(
                         ChannelOption.CONNECT_TIMEOUT_MILLIS,
-                        2_000
+                        5_000
                 )
-                .responseTimeout(Duration.ofSeconds(3));
+                .responseTimeout(Duration.ofSeconds(15));
 
         return builder
                 .clientConnector(
