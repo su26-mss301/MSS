@@ -59,4 +59,26 @@ public interface ClothingItemRepository extends JpaRepository<ClothingItem, UUID
     List<Object[]> countByCategoryIdsGroupByUser(@Param("categoryIds") List<UUID> categoryIds,
                                                  @Param("from") LocalDateTime from,
                                                  @Param("to") LocalDateTime to);
+
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(LocalDateTime start, LocalDateTime end);
+
+    @Query(value = """
+            SELECT CAST(created_at AS date) AS day, COUNT(*)
+            FROM clothing_item
+            WHERE deleted_at IS NULL
+              AND created_at >= :from
+            GROUP BY CAST(created_at AS date)
+            ORDER BY day
+            """, nativeQuery = true)
+    List<Object[]> countDailySince(@Param("from") LocalDateTime from);
+
+    @Query(value = """
+            SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*)
+            FROM clothing_item
+            WHERE deleted_at IS NULL
+              AND created_at >= :from
+            GROUP BY month
+            ORDER BY month
+            """, nativeQuery = true)
+    List<Object[]> countMonthlySince(@Param("from") LocalDateTime from);
 }

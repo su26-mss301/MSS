@@ -40,8 +40,8 @@ spring:
       server:
         webflux:
           httpclient:
-            connect-timeout: 2000
-            response-timeout: 3s
+            connect-timeout: 5000
+            response-timeout: 15s
           routes:
             - id: user-service
               uri: http://localhost:8081
@@ -91,3 +91,9 @@ system-monitoring:
     - name: Storage Service
       service-id: storage-service
       url: http://localhost:8085/api/v1/storage/actuator/health
+
+admin-dashboard:
+  user-service-url: http://localhost:8081/api/v1/users/admin/analytics/summary
+  wardrobe-service-url: http://localhost:8082/api/v1/wardrobe/admin/analytics/summary
+  recommendation-service-url: http://localhost:8083/api/v1/recommendation/admin/analytics/summary
+  ai-detection-service-url: http://localhost:8084/admin/analytics/summary

@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/recommendation")
+@RequestMapping()
 @PreAuthorize("hasAuthority('ROLE_USER')")
 @RequiredArgsConstructor
 public class RecommendationController {
