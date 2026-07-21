@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequestMapping("/wardrobes")
 @RequiredArgsConstructor
 @Tag(name = "Wardrobe", description = "Wardrobe management APIs")
-@PreAuthorize("hasAuthority('ROLE_USER')")
+@PreAuthorize("hasAnyAuthority('ROLE_USER', 'ROLE_ADMIN')")
 public class WardrobeController {
 
     private final WardrobeService wardrobeService;

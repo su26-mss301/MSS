@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequestMapping("/clothing-items/shared")
 @RequiredArgsConstructor
 @Tag(name = "Group Shared Clothing Item", description = "Chia sẻ trang phục vào nhóm bạn")
-@PreAuthorize("hasAuthority('ROLE_USER')")
+@PreAuthorize("hasAnyAuthority('ROLE_USER', 'ROLE_ADMIN')")
 public class GroupSharedClothingItemController {
 
     private final GroupSharedClothingItemService groupSharedService;

@@ -31,4 +31,7 @@ public class FriendGroupResponse {
 
     /** Nhãn tiếng Việt (e.g. ["Tối Giản", "Công Sở"]) */
     private List<String> primaryStyleLabels;
+
+    /** Bảng màu đặc trưng — gom từ favoriteColors của thành viên */
+    private List<String> colorPalette;
 }

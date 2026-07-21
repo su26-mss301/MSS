@@ -1,6 +1,9 @@
 package wardrobe.project.com.recommendationservice.service;
 
+import wardrobe.project.com.recommendationservice.dto.response.RecommendationHistoryDetailDTO;
 import wardrobe.project.com.recommendationservice.dto.response.RecommendationHistoryPageResponse;
+
+import java.util.UUID;
 
 public interface AdminRecommendationHistoryService {
 
@@ -10,4 +13,6 @@ public interface AdminRecommendationHistoryService {
             int size,
             String sort
     );
+
+    RecommendationHistoryDetailDTO getDetail(UUID recommendationId);
 }

@@ -4,7 +4,8 @@ import os
 import json
 import uuid
 import math
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -12,7 +13,7 @@ from sqlalchemy import func, text
 
 from app.detector import predict_image
 from app.image_utils import decode_upload_bytes
-from app.auth_context import CurrentUser, require_roles
+from app.auth_context import CurrentUser, get_current_user, require_roles
 from app.database import (
     get_db,
     engine,
@@ -155,6 +156,123 @@ def _log_to_detail(log: DetectionLog) -> dict:
 
 def _active_logs_filter():
     return DetectionLog.record_status == "ACTIVE"
+
+
+def _user_active_logs_filter(user_id: str):
+    return (
+        DetectionLog.record_status == "ACTIVE",
+        DetectionLog.user_id == user_id,
+    )
+
+
+def _normalize_granularity(granularity: str | None) -> str:
+    period = (granularity or "week").lower()
+    return period if period in {"day", "week", "month"} else "week"
+
+
+def _user_period_bounds(granularity: str | None):
+    now = datetime.utcnow()
+    period = _normalize_granularity(granularity)
+    if period == "day":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "month":
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return start, now, period
+
+
+def _user_period_filters(user_id: str, granularity: str | None):
+    start, end, _ = _user_period_bounds(granularity)
+    return (
+        *_user_active_logs_filter(user_id),
+        DetectionLog.created_at >= start,
+        DetectionLog.created_at <= end,
+    )
+
+
+def _format_week_label(day_key: str) -> str:
+    date = datetime.strptime(day_key, "%Y-%m-%d")
+    labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
+    return labels[date.weekday()]
+
+
+def _build_user_activity_series(db: Session, user_id: str, granularity: str | None) -> list[dict]:
+    start, end, period = _user_period_bounds(granularity)
+    filters = _user_period_filters(user_id, granularity)
+
+    if period == "day":
+        rows = db.query(
+            func.to_char(DetectionLog.created_at, 'HH24').label('bucket'),
+            func.count(DetectionLog.id).label('detections'),
+            func.avg(DetectionLog.confidence).label('accuracy'),
+        ).filter(*filters).group_by('bucket').order_by('bucket').all()
+        bucket_map = {
+            str(row.bucket).zfill(2): {
+                "detections": row.detections,
+                "accuracy": round(row.accuracy or 0, 1),
+            }
+            for row in rows
+        }
+        series = []
+        for hour in range(24):
+            key = f"{hour:02d}"
+            values = bucket_map.get(key, {"detections": 0, "accuracy": 0})
+            series.append({
+                "label": f"{hour}h",
+                "detections": values["detections"],
+                "accuracy": values["accuracy"],
+            })
+        return series
+
+    if period == "month":
+        rows = db.query(
+            func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('bucket'),
+            func.count(DetectionLog.id).label('detections'),
+            func.avg(DetectionLog.confidence).label('accuracy'),
+        ).filter(*filters).group_by('bucket').order_by('bucket').all()
+        bucket_map = {
+            row.bucket: {
+                "detections": row.detections,
+                "accuracy": round(row.accuracy or 0, 1),
+            }
+            for row in rows
+        }
+        series = []
+        cursor = start
+        while cursor.date() <= end.date():
+            key = cursor.strftime("%Y-%m-%d")
+            values = bucket_map.get(key, {"detections": 0, "accuracy": 0})
+            series.append({
+                "label": str(cursor.day),
+                "detections": values["detections"],
+                "accuracy": values["accuracy"],
+            })
+            cursor += timedelta(days=1)
+        return series
+
+    rows = db.query(
+        func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('bucket'),
+        func.count(DetectionLog.id).label('detections'),
+        func.avg(DetectionLog.confidence).label('accuracy'),
+    ).filter(*filters).group_by('bucket').order_by('bucket').all()
+    bucket_map = {
+        row.bucket: {
+            "detections": row.detections,
+            "accuracy": round(row.accuracy or 0, 1),
+        }
+        for row in rows
+    }
+    series = []
+    for offset in range(6, -1, -1):
+        day = (end - timedelta(days=offset)).strftime("%Y-%m-%d")
+        values = bucket_map.get(day, {"detections": 0, "accuracy": 0})
+        series.append({
+            "label": _format_week_label(day),
+            "detections": values["detections"],
+            "accuracy": values["accuracy"],
+        })
+    return series
 
 
 def _calculate_trend_percent(this_week: int, last_week: int) -> float:
@@ -301,6 +419,7 @@ def _create_detection_logs(
         current_user: CurrentUser,
         detections: list,
         image_id: Optional[str],
+        processing_time_ms: Optional[int] = None,
 ) -> list[DetectionLog]:
     session_id = str(uuid.uuid4())
     logs: list[DetectionLog] = []
@@ -318,6 +437,7 @@ def _create_detection_logs(
             gender=detection.get("gender"),
             occasion=_serialize_list(detection.get("occasion")),
             image_id=image_id,
+            processing_time_ms=processing_time_ms if index == 0 else None,
             wardrobe_status="NOT_ADDED",
             record_status="ACTIVE",
             is_pinned=False,
@@ -397,10 +517,18 @@ async def detect(
     if image is None:
         raise HTTPException(status_code=400, detail="Không thể đọc ảnh upload")
 
+    started_at = time.perf_counter()
     detections = predict_image(image)
+    processing_time_ms = int((time.perf_counter() - started_at) * 1000)
 
     if detections:
-        logs = _create_detection_logs(db, current_user, detections, image_id)
+        logs = _create_detection_logs(
+            db,
+            current_user,
+            detections,
+            image_id,
+            processing_time_ms,
+        )
         db.commit()
 
         for detection, log in zip(detections, logs):
@@ -747,67 +875,110 @@ def get_admin_analytics_summary(
 
 
 @app.get("/analytics/stats")
-def get_stats(db: Session = Depends(get_db)):
-    total = db.query(DetectionLog).filter(_active_logs_filter()).count()
-    avg_conf = db.query(func.avg(DetectionLog.confidence)).filter(
-        _active_logs_filter()
-    ).scalar() or 0
+def get_stats(
+    granularity: str = Query(default="week"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    period_filters = _user_period_filters(current_user.user_id, granularity)
+    total = db.query(DetectionLog).filter(*period_filters).count()
+    avg_conf = db.query(func.avg(DetectionLog.confidence)).filter(*period_filters).scalar() or 0
     high_acc = db.query(DetectionLog).filter(
-        _active_logs_filter(),
+        *period_filters,
         DetectionLog.confidence >= 90,
     ).count()
+    session_rows = db.query(
+        func.max(DetectionLog.processing_time_ms).label("processing_time_ms")
+    ).filter(
+        *period_filters,
+        DetectionLog.processing_time_ms.isnot(None),
+    ).group_by(DetectionLog.session_id).all()
+    avg_processing_ms = (
+        sum(row.processing_time_ms for row in session_rows) / len(session_rows)
+        if session_rows
+        else None
+    )
+    avg_processing_time_sec = (
+        round(float(avg_processing_ms) / 1000, 1)
+        if avg_processing_ms is not None
+        else None
+    )
     return {
         "total": total,
         "avg_confidence": round(avg_conf, 1),
-        "high_accuracy": high_acc
+        "high_accuracy": high_acc,
+        "avg_processing_time_sec": avg_processing_time_sec,
+        "granularity": _normalize_granularity(granularity),
     }
 
 
 @app.get("/analytics/daily")
-def get_daily(db: Session = Depends(get_db)):
-    results = db.query(
-        func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('day'),
-        func.count(DetectionLog.id).label('detections'),
-        func.avg(DetectionLog.confidence).label('accuracy')
-    ).filter(_active_logs_filter()).group_by('day').order_by('day').limit(7).all()
-    return [{"day": r.day, "detections": r.detections, "accuracy": round(r.accuracy or 0, 1)} for r in results]
+def get_daily(
+    granularity: str = Query(default="week"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    return _build_user_activity_series(db, current_user.user_id, granularity)
 
 
 @app.get("/analytics/monthly")
-def get_monthly(db: Session = Depends(get_db)):
-    results = db.query(
-        func.to_char(DetectionLog.created_at, 'YYYY-MM').label('month'),
-        func.avg(DetectionLog.confidence).label('confidence')
-    ).filter(_active_logs_filter()).group_by('month').order_by('month').limit(6).all()
-    return [{"month": r.month, "confidence": round(r.confidence or 0, 1)} for r in results]
+def get_monthly(
+    granularity: str = Query(default="week"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    series = _build_user_activity_series(db, current_user.user_id, granularity)
+    return [{"month": point["label"], "confidence": point["accuracy"]} for point in series]
 
 
 @app.get("/analytics/categories")
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(
+    granularity: str = Query(default="week"),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     results = db.query(
         DetectionLog.category,
         func.count(DetectionLog.id).label('detections'),
         func.avg(DetectionLog.confidence).label('accuracy')
-    ).filter(_active_logs_filter()).group_by(DetectionLog.category).all()
+    ).filter(*_user_period_filters(current_user.user_id, granularity)).group_by(DetectionLog.category).all()
     return [{"category": r.category, "detections": r.detections, "accuracy": round(r.accuracy or 0, 1)} for r in
             results]
 
 
+def _format_utc_iso(value: datetime | None) -> str | None:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat().replace("+00:00", "Z")
+
+
 @app.get("/analytics/recent")
-def get_recent(db: Session = Depends(get_db)):
+def get_recent(
+    granularity: str = Query(default="week"),
+    page: int = Query(default=0, ge=0),
+    size: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    filters = _user_period_filters(current_user.user_id, granularity)
+    total_items = db.query(DetectionLog).filter(*filters).count()
     results = (
         db.query(DetectionLog)
-        .filter(_active_logs_filter())
+        .filter(*filters)
         .order_by(DetectionLog.created_at.desc())
-        .limit(10)
+        .offset(page * size)
+        .limit(size)
         .all()
     )
-    return [{
+    items = [{
         "id": r.id,
-        "item": r.category,
-        "category": r.category,
+        "item": r.class_name or r.category,
+        "category": r.class_name or r.category,
         "confidence": round(r.confidence, 1),
-        "time": r.created_at.isoformat(),
+        "time": _format_utc_iso(r.created_at),
         "status": r.status,
-        "img": r.image_url or "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=60&h=60&fit=crop"
+        "imageId": r.image_id,
     } for r in results]
+    return _build_page_response(items, page, size, total_items)

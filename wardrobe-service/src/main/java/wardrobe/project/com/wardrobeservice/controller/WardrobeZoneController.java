@@ -21,7 +21,7 @@ import java.util.UUID;
 @RequestMapping("/wardrobe-zones")
 @RequiredArgsConstructor
 @Tag(name = "Wardrobe Zone", description = "Wardrobe Zone management APIs")
-@PreAuthorize("hasAuthority('ROLE_USER')")
+@PreAuthorize("hasAnyAuthority('ROLE_USER', 'ROLE_ADMIN')")
 public class WardrobeZoneController {
 
     private final WardrobeZoneService wardrobeZoneService;

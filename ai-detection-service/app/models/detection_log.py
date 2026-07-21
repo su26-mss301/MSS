@@ -24,6 +24,8 @@ class DetectionLog(Base):
     image_url = Column(String, nullable=True)
     image_id = Column(String, nullable=True)
 
+    processing_time_ms = Column(Integer, nullable=True)
+
     item_name = Column(String, nullable=True)
     wardrobe_status = Column(
         String,
