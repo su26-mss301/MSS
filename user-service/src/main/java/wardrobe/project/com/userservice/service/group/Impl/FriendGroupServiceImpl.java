@@ -617,8 +617,11 @@ public class FriendGroupServiceImpl implements FriendGroupService {
 
     private FriendGroupResponse toResponse(FriendGroup group, FriendGroupRole myRole) {
         long memberCount = friendGroupMemberRepository.countByGroupAndActiveTrue(group);
+        List<FriendGroupMember> members =
+                friendGroupMemberRepository.findByGroupAndActiveTrue(group);
+        List<String> colorPalette = buildColorPalette(members);
 
-        return friendGroupMapper.toResponse(group, myRole, memberCount);
+        return friendGroupMapper.toResponse(group, myRole, memberCount, colorPalette);
     }
 
     private List<GroupStyleStatResponse> buildCommonStyles(List<FriendGroupMember> members) {

@@ -30,6 +30,15 @@ public class RecommendItem {
     @Column(name = "recommendation_score", nullable = false)
     private Float recommendationScore;
 
+    @Column(name = "group_id")
+    private UUID groupId;
+
+    @Column(name = "group_name")
+    private String groupName;
+
+    @Column(name = "group_styles", columnDefinition = "TEXT")
+    private String groupStyles;
+
     @CreationTimestamp
     @Column(name = "generated_at", updatable = false)
     private LocalDateTime generatedAt;

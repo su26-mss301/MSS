@@ -18,8 +18,10 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import wardrobe.project.com.recommendationservice.dto.response.ApiResponse;
 import wardrobe.project.com.recommendationservice.dto.response.OutfitResponseDTO;
+import wardrobe.project.com.recommendationservice.dto.response.RecommendationMemberOutfitDTO;
 import wardrobe.project.com.recommendationservice.dto.response.RecommendationResponseDTO;
 import wardrobe.project.com.recommendationservice.dto.external.ClothingItemExternalDTO;
+import wardrobe.project.com.recommendationservice.dto.external.CategoryDTO;
 import wardrobe.project.com.recommendationservice.dto.external.UserProfileExternalDTO;
 import wardrobe.project.com.recommendationservice.engine.OutfitGenerator;
 import wardrobe.project.com.recommendationservice.engine.RecommendationEngine;
@@ -27,10 +29,12 @@ import wardrobe.project.com.recommendationservice.entity.Event;
 import wardrobe.project.com.recommendationservice.entity.Outfit;
 import wardrobe.project.com.recommendationservice.entity.OutfitItem;
 import wardrobe.project.com.recommendationservice.entity.RecommendItem;
+import wardrobe.project.com.recommendationservice.entity.RecommendMemberOutfit;
 import wardrobe.project.com.recommendationservice.repository.EventRepository;
 import wardrobe.project.com.recommendationservice.repository.OutfitItemRepository;
 import wardrobe.project.com.recommendationservice.repository.OutfitRepository;
 import wardrobe.project.com.recommendationservice.repository.RecommendItemRepository;
+import wardrobe.project.com.recommendationservice.repository.RecommendMemberOutfitRepository;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +52,7 @@ public class RecommendationServiceImpl {
     private final OutfitRepository outfitRepository;
     private final OutfitItemRepository outfitItemRepository;
     private final RecommendItemRepository recommendItemRepository;
+    private final RecommendMemberOutfitRepository recommendMemberOutfitRepository;
     private final EventRepository eventRepository;
     private final RestTemplate restTemplate;
     private final ExecutorService executorService = Executors.newFixedThreadPool(15);
@@ -111,6 +116,16 @@ public class RecommendationServiceImpl {
                 .map(item -> item.getItemName() + " màu " + item.getDominantColor())
                 .collect(Collectors.joining(", "));
         return "Bộ trang phục được phối từ các vật phẩm thực tế trong tủ của bạn bao gồm: " + itemDetails + ".";
+    }
+
+    private String generateSharedItemsDescription(List<ClothingItemExternalDTO> items) {
+        if (items == null || items.isEmpty()) {
+            return "Chưa có trang phục được chia sẻ.";
+        }
+        String itemDetails = items.stream()
+                .map(item -> item.getItemName() + " màu " + item.getDominantColor())
+                .collect(Collectors.joining(", "));
+        return "Trang phục đã chia sẻ trong nhóm: " + itemDetails + ".";
     }
 
     private HttpHeaders getForwardingHeaders() {
@@ -186,7 +201,7 @@ public class RecommendationServiceImpl {
     @SuppressWarnings("unchecked")
     public List<ClothingItemExternalDTO> fetchUserWardrobe(UUID userId) {
 
-        String wardrobeUrl = apiGatewayUrl + "/api/v1/wardrobe/wardrobes";
+        String wardrobeUrl = apiGatewayUrl + "/api/v1/wardrobe/wardrobes/user/" + userId;
 
         HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
 
@@ -305,6 +320,116 @@ public class RecommendationServiceImpl {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public List<ClothingItemExternalDTO> fetchGroupSharedItems(UUID groupId) {
+        String url = apiGatewayUrl + "/api/v1/wardrobe/clothing-items/shared/group/" + groupId;
+        HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
+
+        try {
+            ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, ApiResponse.class
+            );
+            ApiResponse response = responseEntity.getBody();
+            if (response == null || response.getData() == null) {
+                return Collections.emptyList();
+            }
+
+            List<Map<String, Object>> sharedItems = (List<Map<String, Object>>) response.getData();
+            List<ClothingItemExternalDTO> parsedItems = new ArrayList<>();
+
+            for (Map<String, Object> sharedMap : sharedItems) {
+                ClothingItemExternalDTO itemDTO = mapSharedItemToDto(sharedMap);
+                if (itemDTO.getItemId() != null) {
+                    parsedItems.add(itemDTO);
+                }
+            }
+            return parsedItems;
+        } catch (Exception e) {
+            log.warn("Lấy trang phục chia sẻ của nhóm {} thất bại: {}", groupId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    public Map<UUID, List<ClothingItemExternalDTO>> fetchGroupSharedItemsByMember(UUID groupId) {
+        return fetchGroupSharedItems(groupId).stream()
+                .filter(item -> item.getSharedByUserId() != null)
+                .collect(Collectors.groupingBy(ClothingItemExternalDTO::getSharedByUserId));
+    }
+
+    private ClothingItemExternalDTO mapSharedItemToDto(Map<String, Object> sharedMap) {
+        ClothingItemExternalDTO itemDTO = new ClothingItemExternalDTO();
+        if (sharedMap.get("itemId") != null) {
+            itemDTO.setItemId(UUID.fromString(sharedMap.get("itemId").toString()));
+        }
+        if (sharedMap.get("itemName") != null) {
+            itemDTO.setItemName(sharedMap.get("itemName").toString());
+        }
+        if (sharedMap.get("dominantColor") != null) {
+            itemDTO.setDominantColor(sharedMap.get("dominantColor").toString());
+        }
+        if (sharedMap.get("style") != null) {
+            itemDTO.setStyle(sharedMap.get("style").toString());
+        }
+        if (sharedMap.get("imageId") != null) {
+            itemDTO.setImageId(UUID.fromString(sharedMap.get("imageId").toString()));
+        }
+        if (sharedMap.get("confidenceScore") != null) {
+            itemDTO.setConfidenceScore(Float.parseFloat(sharedMap.get("confidenceScore").toString()));
+        }
+        if (sharedMap.get("sharedByUserId") != null) {
+            itemDTO.setSharedByUserId(UUID.fromString(sharedMap.get("sharedByUserId").toString()));
+        }
+        return itemDTO;
+    }
+
+    private ClothingItemExternalDTO fetchClothingItemById(UUID itemId) {
+        String url = apiGatewayUrl + "/api/v1/wardrobe/clothing-items/" + itemId;
+        HttpEntity<?> entity = new HttpEntity<>(getForwardingHeaders());
+        try {
+            ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, ApiResponse.class
+            );
+            ApiResponse response = responseEntity.getBody();
+            if (response == null || response.getData() == null) {
+                return null;
+            }
+
+            Map<String, Object> itemMap = (Map<String, Object>) response.getData();
+            ClothingItemExternalDTO itemDTO = new ClothingItemExternalDTO();
+            itemDTO.setItemId(itemId);
+            if (itemMap.get("itemName") != null) {
+                itemDTO.setItemName(itemMap.get("itemName").toString());
+            }
+            if (itemMap.get("dominantColor") != null) {
+                itemDTO.setDominantColor(itemMap.get("dominantColor").toString());
+            }
+            if (itemMap.get("style") != null) {
+                itemDTO.setStyle(itemMap.get("style").toString());
+            }
+            if (itemMap.get("imageId") != null) {
+                itemDTO.setImageId(UUID.fromString(itemMap.get("imageId").toString()));
+            }
+            if (itemMap.get("confidenceScore") != null) {
+                itemDTO.setConfidenceScore(Float.parseFloat(itemMap.get("confidenceScore").toString()));
+            }
+            if (itemMap.get("category") != null) {
+                Map<String, Object> catMap = (Map<String, Object>) itemMap.get("category");
+                CategoryDTO catDTO = new CategoryDTO();
+                if (catMap.get("categoryId") != null) {
+                    catDTO.setCategoryId(UUID.fromString(catMap.get("categoryId").toString()));
+                }
+                if (catMap.get("categoryName") != null) {
+                    catDTO.setCategoryName(catMap.get("categoryName").toString());
+                }
+                itemDTO.setCategory(catDTO);
+            }
+            return itemDTO;
+        } catch (Exception e) {
+            log.warn("Không thể tải clothing item {}: {}", itemId, e.getMessage());
+            return null;
+        }
+    }
+
     private Event getOrCreateEvent(String eventType) {
         return eventRepository.findByEventType(eventType).orElseGet(() -> {
             Event newEvent = new Event();
@@ -335,13 +460,25 @@ public class RecommendationServiceImpl {
         return memberIds;
     }
 
+    private static class GroupMemberInfo {
+        UUID userId;
+        String fullName;
+
+        GroupMemberInfo(UUID userId, String fullName) {
+            this.userId = userId;
+            this.fullName = fullName;
+        }
+    }
+
     private static class GroupInfo {
         String groupName;
         List<String> styles;
+        List<GroupMemberInfo> members;
 
-        public GroupInfo(String groupName, List<String> styles) {
+        GroupInfo(String groupName, List<String> styles, List<GroupMemberInfo> members) {
             this.groupName = groupName;
             this.styles = styles;
+            this.members = members;
         }
     }
 
@@ -386,7 +523,23 @@ public class RecommendationServiceImpl {
                 if (trendingStyles.isEmpty()) {
                     trendingStyles.addAll(List.of("casual", "minimal"));
                 }
-                return new GroupInfo(groupName, trendingStyles);
+
+                List<GroupMemberInfo> members = new ArrayList<>();
+                if (membersNode.isArray()) {
+                    for (JsonNode m : membersNode) {
+                        String memberUserId = m.path("userId").asText(null);
+                        if (memberUserId == null || memberUserId.isBlank()) {
+                            continue;
+                        }
+                        String fullName = m.path("fullName").asText("");
+                        if (fullName.isBlank()) {
+                            fullName = m.path("email").asText("Thành viên");
+                        }
+                        members.add(new GroupMemberInfo(UUID.fromString(memberUserId), fullName));
+                    }
+                }
+
+                return new GroupInfo(groupName, trendingStyles, members);
             }
         } catch (Exception e) {
             log.warn("Lấy chi tiết và thống kê nhóm thất bại: {}", e.getMessage());
@@ -508,32 +661,132 @@ public class RecommendationServiceImpl {
                     .build();
         }
 
-        List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
-        if (wardrobe.isEmpty()) {
-            log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
-            return createEmptyRecommendationResponse(userId, "Nhóm Bạn");
+        List<ClothingItemExternalDTO> sharedByMember = fetchGroupSharedItems(groupId).stream()
+                .filter(item -> userId.equals(item.getSharedByUserId()))
+                .toList();
+
+        if (sharedByMember.isEmpty()) {
+            log.warn("Người dùng {} chưa chia sẻ trang phục nào vào nhóm {}", userId, groupId);
+            return createNoGroupSharedItemsResponse(userId);
         }
 
-        List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, groupInfo.styles);
+        List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(sharedByMember, groupInfo.styles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
         if (!outfitGenerator.isValidOutfit(finalOutfit)) {
-            log.warn("Set đồ nhóm không đủ thành phần cơ bản cho user: {}", userId);
-            return createNotEnoughItemsResponse(userId, "Nhóm Bạn");
+            log.warn("Set đồ nhóm không đủ thành phần từ trang phục đã chia sẻ cho user: {}", userId);
+            return createNotEnoughSharedItemsResponse(userId);
         }
 
         float realScore = calculateRealScore(finalOutfit);
 
-        String realName = "Phong Cách " + groupInfo.groupName + " (Nhóm)";
-
+        String realName = groupInfo.groupName + " (Nhóm)";
         String realDesc = generateDynamicDescription(finalOutfit);
 
         Event event = getOrCreateEvent("Party");
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, realScore, realName, realDesc);
-        return mapToResponse(entity, wardrobe);
+        Map<UUID, List<ClothingItemExternalDTO>> sharedItemsByMember = fetchGroupSharedItemsByMember(groupId);
+        RecommendItem entity = saveGroupRecommendation(
+                userId,
+                groupId,
+                groupInfo,
+                sharedItemsByMember,
+                event,
+                realName,
+                realDesc
+        );
+        return mapToResponse(entity, sharedByMember);
     }
 
-    private RecommendItem saveRecommendation(UUID userId, List<ClothingItemExternalDTO> items, Event event, float score, String name, String description) {
+    private RecommendItem saveGroupRecommendation(
+            UUID creatorUserId,
+            UUID groupId,
+            GroupInfo groupInfo,
+            Map<UUID, List<ClothingItemExternalDTO>> sharedItemsByMember,
+            Event event,
+            String name,
+            String description
+    ) {
+        Map<UUID, GeneratedMemberOutfit> generatedOutfits = new LinkedHashMap<>();
+
+        for (GroupMemberInfo member : groupInfo.members) {
+            List<ClothingItemExternalDTO> memberShared = sharedItemsByMember.getOrDefault(member.userId, List.of());
+            if (memberShared.isEmpty()) {
+                log.info("Bỏ qua thành viên {} do chưa chia sẻ trang phục vào nhóm", member.userId);
+                continue;
+            }
+
+            List<ClothingItemExternalDTO> memberRanked = engine.rankByCollaborative(memberShared, groupInfo.styles);
+            List<ClothingItemExternalDTO> displayItems = memberRanked.isEmpty() ? memberShared : memberRanked;
+
+            float memberScore = calculateRealScore(displayItems);
+            String memberDesc = generateSharedItemsDescription(displayItems);
+            Outfit memberOutfit = createOutfitWithItems(
+                    name + " · " + member.fullName,
+                    memberDesc,
+                    displayItems
+            );
+            generatedOutfits.put(member.userId, new GeneratedMemberOutfit(member.fullName, memberOutfit, memberScore));
+        }
+
+        GeneratedMemberOutfit creatorOutfit = generatedOutfits.get(creatorUserId);
+        if (creatorOutfit == null) {
+            throw new RuntimeException("Không thể tạo gợi ý nhóm từ trang phục đã chia sẻ");
+        }
+
+        List<ClothingItemExternalDTO> creatorShared = sharedItemsByMember.getOrDefault(creatorUserId, List.of());
+        List<ClothingItemExternalDTO> creatorRanked = engine.rankByCollaborative(creatorShared, groupInfo.styles);
+        List<ClothingItemExternalDTO> creatorBestOutfit = outfitGenerator.generateBestOutfit(creatorRanked);
+        if (creatorBestOutfit.isEmpty()) {
+            creatorBestOutfit = creatorRanked.isEmpty() ? creatorShared : creatorRanked;
+        }
+
+        Outfit mainOutfit = createOutfitWithItems(name, description, creatorBestOutfit);
+
+        RecommendItem rec = new RecommendItem();
+        rec.setUserId(creatorUserId);
+        rec.setOutfit(mainOutfit);
+        rec.setEvent(event);
+        rec.setRecommendationScore(calculateRealScore(creatorBestOutfit));
+        rec.setGroupId(groupId);
+        rec.setGroupName(groupInfo.groupName);
+        rec.setGroupStyles(String.join(",", groupInfo.styles));
+        rec = recommendItemRepository.save(rec);
+
+        for (Map.Entry<UUID, GeneratedMemberOutfit> entry : generatedOutfits.entrySet()) {
+            GeneratedMemberOutfit generated = entry.getValue();
+            saveMemberOutfit(rec, entry.getKey(), generated.fullName(), generated.outfit(), generated.score());
+        }
+
+        return rec;
+    }
+
+    private record GeneratedMemberOutfit(String fullName, Outfit outfit, float score) {}
+
+    private void saveMemberOutfit(
+            RecommendItem recommendItem,
+            UUID memberUserId,
+            String memberName,
+            Outfit outfit,
+            float memberScore
+    ) {
+        RecommendMemberOutfit memberRecord = new RecommendMemberOutfit();
+        memberRecord.setRecommendItem(recommendItem);
+        memberRecord.setMemberUserId(memberUserId);
+        memberRecord.setMemberName(memberName);
+        memberRecord.setOutfit(outfit);
+        memberRecord.setMemberScore(memberScore);
+        recommendMemberOutfitRepository.save(memberRecord);
+    }
+
+    private String resolveMemberName(GroupInfo groupInfo, UUID userId) {
+        return groupInfo.members.stream()
+                .filter(member -> member.userId.equals(userId))
+                .map(member -> member.fullName)
+                .findFirst()
+                .orElse("Thành viên");
+    }
+
+    private Outfit createOutfitWithItems(String name, String description, List<ClothingItemExternalDTO> items) {
         Outfit outfit = new Outfit();
         outfit.setOutfitName(name);
         outfit.setDescription(description);
@@ -546,6 +799,12 @@ public class RecommendationServiceImpl {
             outfitItemRepository.save(outfitItem);
         }
 
+        return outfit;
+    }
+
+    private RecommendItem saveRecommendation(UUID userId, List<ClothingItemExternalDTO> items, Event event, float score, String name, String description) {
+        Outfit outfit = createOutfitWithItems(name, description, items);
+
         RecommendItem rec = new RecommendItem();
         rec.setUserId(userId);
         rec.setOutfit(outfit);
@@ -554,17 +813,214 @@ public class RecommendationServiceImpl {
         return recommendItemRepository.save(rec);
     }
 
-    private RecommendationResponseDTO mapToResponse(RecommendItem item, List<ClothingItemExternalDTO> availableItems) {
-        List<OutfitItem> outfitItems = outfitItemRepository.findByOutfit(item.getOutfit());
-        List<ClothingItemExternalDTO> realClothingDetails = new ArrayList<>();
-        if (outfitItems != null && availableItems != null) {
-            for (OutfitItem oi : outfitItems) {
-                availableItems.stream()
-                        .filter(c -> c.getItemId().equals(oi.getItemId()))
-                        .findFirst()
-                        .ifPresent(realClothingDetails::add);
+    public OutfitResponseDTO buildOutfitResponse(Outfit outfit, UUID memberUserId, RecommendItem recommendItem) {
+        List<ClothingItemExternalDTO> availableItems = resolveAvailableItems(recommendItem, memberUserId);
+        List<OutfitItem> outfitItems = outfitItemRepository.findByOutfit(outfit);
+        List<ClothingItemExternalDTO> realClothingDetails = resolveClothingDetails(outfitItems, availableItems);
+        return toOutfitResponseDto(outfit, recommendItem, realClothingDetails);
+    }
+
+    public OutfitResponseDTO buildOutfitResponseForAdmin(Outfit outfit, RecommendItem recommendItem) {
+        List<OutfitItem> outfitItems = outfitItemRepository.findByOutfit(outfit);
+        List<ClothingItemExternalDTO> realClothingDetails = resolveClothingDetailsByItemIds(outfitItems);
+        return toOutfitResponseDto(outfit, recommendItem, realClothingDetails);
+    }
+
+    public List<RecommendationMemberOutfitDTO> buildAdminGroupMemberDetails(
+            RecommendItem item,
+            List<RecommendMemberOutfit> savedMemberOutfits
+    ) {
+        Map<UUID, RecommendMemberOutfit> savedByUserId = savedMemberOutfits.stream()
+                .collect(Collectors.toMap(
+                        RecommendMemberOutfit::getMemberUserId,
+                        member -> member,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        Map<UUID, List<ClothingItemExternalDTO>> sharedByMember = item.getGroupId() != null
+                ? fetchGroupSharedItemsByMember(item.getGroupId())
+                : Map.of();
+
+        LinkedHashSet<UUID> orderedUserIds = new LinkedHashSet<>();
+        for (RecommendMemberOutfit saved : savedMemberOutfits) {
+            orderedUserIds.add(saved.getMemberUserId());
+        }
+        for (Map.Entry<UUID, List<ClothingItemExternalDTO>> entry : sharedByMember.entrySet()) {
+            if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                orderedUserIds.add(entry.getKey());
             }
         }
+
+        List<String> groupStyles = parseGroupStyles(item.getGroupStyles());
+        List<RecommendationMemberOutfitDTO> members = new ArrayList<>();
+
+        for (UUID memberUserId : orderedUserIds) {
+            RecommendMemberOutfit saved = savedByUserId.get(memberUserId);
+            List<ClothingItemExternalDTO> sharedItems = sharedByMember.getOrDefault(memberUserId, List.of());
+
+            OutfitResponseDTO outfitDto;
+            float score;
+            String fullName;
+
+            if (!sharedItems.isEmpty()) {
+                List<ClothingItemExternalDTO> rankedShared = groupStyles.isEmpty()
+                        ? sharedItems
+                        : engine.rankByCollaborative(sharedItems, groupStyles);
+                outfitDto = buildOutfitResponseFromClothingItems(
+                        item,
+                        rankedShared,
+                        item.getGroupName() != null ? item.getGroupName() + " (Nhóm)" : "Trang phục nhóm"
+                );
+                score = saved != null && saved.getMemberScore() != null
+                        ? saved.getMemberScore()
+                        : calculateRealScore(rankedShared);
+                fullName = saved != null && saved.getMemberName() != null && !saved.getMemberName().isBlank()
+                        ? saved.getMemberName()
+                        : "Thành viên";
+            } else if (saved != null) {
+                outfitDto = buildOutfitResponseForAdmin(saved.getOutfit(), item);
+                score = saved.getMemberScore() != null ? saved.getMemberScore() : 0f;
+                fullName = saved.getMemberName() != null ? saved.getMemberName() : "Thành viên";
+            } else {
+                continue;
+            }
+
+            if (outfitDto.getClothingItems() == null || outfitDto.getClothingItems().isEmpty()) {
+                continue;
+            }
+
+            members.add(RecommendationMemberOutfitDTO.builder()
+                    .userId(memberUserId)
+                    .fullName(fullName)
+                    .recommendationScore(score)
+                    .outfit(outfitDto)
+                    .creator(item.getUserId().equals(memberUserId))
+                    .build());
+        }
+
+        return members;
+    }
+
+    public OutfitResponseDTO buildOutfitResponseFromClothingItems(
+            RecommendItem recommendItem,
+            List<ClothingItemExternalDTO> clothingItems,
+            String outfitName
+    ) {
+        List<ClothingItemExternalDTO> resolvedItems = clothingItems.stream()
+                .map(item -> {
+                    if (item.getImageId() != null && item.getItemName() != null) {
+                        return item;
+                    }
+                    ClothingItemExternalDTO fetched = fetchClothingItemById(item.getItemId());
+                    return fetched != null ? fetched : item;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        List<String> realTags = new ArrayList<>();
+        if (recommendItem != null && recommendItem.getEvent() != null && recommendItem.getEvent().getEventType() != null) {
+            realTags.add(recommendItem.getEvent().getEventType());
+        }
+
+        return OutfitResponseDTO.builder()
+                .outfitName(outfitName)
+                .description(generateSharedItemsDescription(resolvedItems))
+                .img(null)
+                .items(resolvedItems.size())
+                .tags(realTags)
+                .clothingItems(resolvedItems)
+                .build();
+    }
+
+    private OutfitResponseDTO toOutfitResponseDto(
+            Outfit outfit,
+            RecommendItem recommendItem,
+            List<ClothingItemExternalDTO> realClothingDetails
+    ) {
+        List<String> realTags = new ArrayList<>();
+        if (recommendItem != null && recommendItem.getEvent() != null && recommendItem.getEvent().getEventType() != null) {
+            realTags.add(recommendItem.getEvent().getEventType());
+        }
+
+        return OutfitResponseDTO.builder()
+                .outfitId(outfit.getId())
+                .outfitName(outfit.getOutfitName())
+                .description(outfit.getDescription())
+                .img(null)
+                .items(realClothingDetails.size())
+                .tags(realTags)
+                .clothingItems(realClothingDetails)
+                .build();
+    }
+
+    private List<ClothingItemExternalDTO> resolveClothingDetailsByItemIds(List<OutfitItem> outfitItems) {
+        List<ClothingItemExternalDTO> realClothingDetails = new ArrayList<>();
+        if (outfitItems == null) {
+            return realClothingDetails;
+        }
+
+        for (OutfitItem outfitItem : outfitItems) {
+            ClothingItemExternalDTO matched = fetchClothingItemById(outfitItem.getItemId());
+            if (matched != null) {
+                realClothingDetails.add(matched);
+            }
+        }
+        return realClothingDetails;
+    }
+
+    public List<String> parseGroupStyles(String groupStyles) {
+        if (groupStyles == null || groupStyles.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(groupStyles.split(","))
+                .map(String::trim)
+                .filter(style -> !style.isEmpty())
+                .toList();
+    }
+
+    private List<ClothingItemExternalDTO> resolveAvailableItems(RecommendItem recommendItem, UUID memberUserId) {
+        if (recommendItem != null && recommendItem.getGroupId() != null) {
+            List<ClothingItemExternalDTO> sharedItems = fetchGroupSharedItems(recommendItem.getGroupId()).stream()
+                    .filter(item -> memberUserId.equals(item.getSharedByUserId()))
+                    .toList();
+            if (!sharedItems.isEmpty()) {
+                return sharedItems;
+            }
+        }
+        return fetchUserWardrobe(memberUserId);
+    }
+
+    private List<ClothingItemExternalDTO> resolveClothingDetails(
+            List<OutfitItem> outfitItems,
+            List<ClothingItemExternalDTO> availableItems
+    ) {
+        List<ClothingItemExternalDTO> realClothingDetails = new ArrayList<>();
+        if (outfitItems == null) {
+            return realClothingDetails;
+        }
+
+        for (OutfitItem outfitItem : outfitItems) {
+            ClothingItemExternalDTO matched = null;
+            if (availableItems != null) {
+                matched = availableItems.stream()
+                        .filter(item -> item.getItemId().equals(outfitItem.getItemId()))
+                        .findFirst()
+                        .orElse(null);
+            }
+            if (matched == null) {
+                matched = fetchClothingItemById(outfitItem.getItemId());
+            }
+            if (matched != null) {
+                realClothingDetails.add(matched);
+            }
+        }
+        return realClothingDetails;
+    }
+
+    private RecommendationResponseDTO mapToResponse(RecommendItem item, List<ClothingItemExternalDTO> availableItems) {
+        List<OutfitItem> outfitItems = outfitItemRepository.findByOutfit(item.getOutfit());
+        List<ClothingItemExternalDTO> realClothingDetails = resolveClothingDetails(outfitItems, availableItems);
 
         List<String> realTags = new ArrayList<>();
         if (item.getEvent() != null && item.getEvent().getEventType() != null) {
@@ -624,6 +1080,38 @@ public class RecommendationServiceImpl {
                 .outfit(emptyOutfit)
                 .recommendationScore(0f)
                 .eventType(eventType)
+                .build();
+    }
+
+    private RecommendationResponseDTO createNoGroupSharedItemsResponse(UUID userId) {
+        OutfitResponseDTO emptyOutfit = OutfitResponseDTO.builder()
+                .outfitName("Chưa có trang phục chia sẻ")
+                .description("Hãy chia sẻ trang phục vào nhóm bạn trước khi tạo gợi ý nhóm. Mỗi thành viên cần chia sẻ đồ của mình để AI phối theo phong cách chung của nhóm.")
+                .items(0)
+                .clothingItems(new ArrayList<>())
+                .build();
+
+        return RecommendationResponseDTO.builder()
+                .userId(userId)
+                .outfit(emptyOutfit)
+                .recommendationScore(0f)
+                .eventType("Nhóm Bạn")
+                .build();
+    }
+
+    private RecommendationResponseDTO createNotEnoughSharedItemsResponse(UUID userId) {
+        OutfitResponseDTO emptyOutfit = OutfitResponseDTO.builder()
+                .outfitName("Trang phục chia sẻ chưa đủ")
+                .description("Trang phục bạn đã chia sẻ vào nhóm chưa đủ thành phần cơ bản để phối đồ (Cần ít nhất Áo + Quần/Váy, hoặc Đầm liền). Hãy chia sẻ thêm trang phục phù hợp nhé!")
+                .items(0)
+                .clothingItems(new ArrayList<>())
+                .build();
+
+        return RecommendationResponseDTO.builder()
+                .userId(userId)
+                .outfit(emptyOutfit)
+                .recommendationScore(0f)
+                .eventType("Nhóm Bạn")
                 .build();
     }
 }

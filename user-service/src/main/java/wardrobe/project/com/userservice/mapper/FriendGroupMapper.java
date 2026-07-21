@@ -17,7 +17,8 @@ public class FriendGroupMapper {
     public FriendGroupResponse toResponse(
             FriendGroup group,
             FriendGroupRole myRole,
-            long memberCount
+            long memberCount,
+            List<String> colorPalette
     ) {
         if (group == null) {
             return null;
@@ -43,6 +44,7 @@ public class FriendGroupMapper {
                 )
                 .primaryStyles(styles)
                 .primaryStyleLabels(labels)
+                .colorPalette(colorPalette != null ? colorPalette : List.of())
                 .build();
     }
 

@@ -19,6 +19,7 @@ public class ClothingItemExternalDTO {
     private String dominantColor;
     private String style;
     private Float confidenceScore;
+    private UUID sharedByUserId;
 
     public UUID getCategoryId() {
         return category != null ? category.getCategoryId() : null;

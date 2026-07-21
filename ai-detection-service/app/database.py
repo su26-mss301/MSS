@@ -30,6 +30,7 @@ def migrate_detection_logs():
         "ALTER TABLE detection_logs ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE",
         "ALTER TABLE detection_logs ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP",
         "ALTER TABLE detection_logs ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMP",
+        "ALTER TABLE detection_logs ADD COLUMN IF NOT EXISTS processing_time_ms INTEGER",
     ]
 
     with engine.begin() as conn:
