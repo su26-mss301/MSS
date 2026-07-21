@@ -46,6 +46,37 @@ public class RecommendationEngine {
         return false;
     }
 
+    public List<ClothingItemExternalDTO> rankByPersonal(List<ClothingItemExternalDTO> wardrobe, List<String> styles) {
+        Map<ClothingItemExternalDTO, Float> scoredItems = new HashMap<>();
+
+        for (ClothingItemExternalDTO item : wardrobe) {
+            float score = 1.0f;
+
+            if (item.getStyle() != null && !styles.isEmpty()) {
+                String itemStyle = item.getStyle().toLowerCase();
+                boolean isStyleMatch = false;
+
+                for (String prefStyle : styles) {
+                    List<String> validKeywords = STYLE_DICTIONARY.getOrDefault(prefStyle.trim(), List.of(prefStyle.trim()));
+                    if (validKeywords.stream().anyMatch(itemStyle::contains)) {
+                        isStyleMatch = true;
+                        break;
+                    }
+                }
+
+                if (isStyleMatch) score += 5.0f;
+            }
+
+            score += (float) (Math.random() * 0.1);
+            scoredItems.put(item, score);
+        }
+
+        return scoredItems.entrySet().stream()
+                .sorted((e1, e2) -> Float.compare(e2.getValue(), e1.getValue()))
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
+
     public List<ClothingItemExternalDTO> rankByContentBased(List<ClothingItemExternalDTO> wardrobe, UserProfileExternalDTO profile) {
         Map<ClothingItemExternalDTO, Float> scoredItems = new HashMap<>();
 
