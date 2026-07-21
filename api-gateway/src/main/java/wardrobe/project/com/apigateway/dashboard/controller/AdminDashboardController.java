@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
@@ -21,7 +22,10 @@ public class AdminDashboardController {
     private final GatewayAuthSupport gatewayAuthSupport;
 
     @GetMapping("/overview")
-    public Mono<AdminDashboardOverviewResponse> getOverview(ServerWebExchange exchange) {
+    public Mono<AdminDashboardOverviewResponse> getOverview(
+            ServerWebExchange exchange,
+            @RequestParam(defaultValue = "week") String granularity
+    ) {
         return gatewayAuthSupport.resolveForwardedAuth(exchange.getRequest())
                 .flatMap(auth -> {
                     if (!"ROLE_ADMIN".equals(auth.getRole())) {
@@ -31,7 +35,7 @@ public class AdminDashboardController {
                         ));
                     }
 
-                    return adminDashboardService.getOverview(auth.getHeaders());
+                    return adminDashboardService.getOverview(auth.getHeaders(), granularity);
                 });
     }
 }

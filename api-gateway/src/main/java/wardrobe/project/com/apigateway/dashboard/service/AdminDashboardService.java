@@ -6,6 +6,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 import wardrobe.project.com.apigateway.dashboard.config.AdminDashboardProperties;
 import wardrobe.project.com.apigateway.dashboard.dto.AdminDashboardOverviewResponse;
@@ -22,9 +23,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -37,19 +41,24 @@ public class AdminDashboardService {
     private final WebClient monitoringWebClient;
     private final SystemMonitoringService systemMonitoringService;
 
-    public Mono<AdminDashboardOverviewResponse> getOverview(HttpHeaders forwardHeaders) {
+    public Mono<AdminDashboardOverviewResponse> getOverview(
+            HttpHeaders forwardHeaders,
+            String granularity
+    ) {
+        String period = normalizeGranularity(granularity);
         Mono<AnalyticsSummaryResponse> usersMono =
-                fetchWrappedSummary(properties.getUserServiceUrl(), forwardHeaders);
+                fetchWrappedSummary(properties.getUserServiceUrl(), forwardHeaders, period);
         Mono<AnalyticsSummaryResponse> wardrobeMono =
-                fetchWrappedSummary(properties.getWardrobeServiceUrl(), forwardHeaders);
+                fetchWrappedSummary(properties.getWardrobeServiceUrl(), forwardHeaders, period);
         Mono<AnalyticsSummaryResponse> recommendationMono =
-                fetchWrappedSummary(properties.getRecommendationServiceUrl(), forwardHeaders);
+                fetchWrappedSummary(properties.getRecommendationServiceUrl(), forwardHeaders, period);
         Mono<AnalyticsSummaryResponse> aiMono =
-                fetchDirectSummary(properties.getAiDetectionServiceUrl(), forwardHeaders);
+                fetchDirectSummary(properties.getAiDetectionServiceUrl(), forwardHeaders, period);
         Mono<SystemHealthResponse> healthMono = systemMonitoringService.getSystemHealth();
 
         return Mono.zip(usersMono, wardrobeMono, recommendationMono, aiMono, healthMono)
                 .map(tuple -> buildOverview(
+                        period,
                         tuple.getT1(),
                         tuple.getT2(),
                         tuple.getT3(),
@@ -58,12 +67,24 @@ public class AdminDashboardService {
                 ));
     }
 
+    private String normalizeGranularity(String granularity) {
+        if (granularity == null) {
+            return "week";
+        }
+        return switch (granularity.toLowerCase()) {
+            case "day", "month" -> granularity.toLowerCase();
+            default -> "week";
+        };
+    }
+
     private Mono<AnalyticsSummaryResponse> fetchWrappedSummary(
             String url,
-            HttpHeaders forwardHeaders
+            HttpHeaders forwardHeaders,
+            String granularity
     ) {
+        String requestUrl = withGranularity(url, granularity);
         return monitoringWebClient.get()
-                .uri(url)
+                .uri(requestUrl)
                 .headers(headers -> headers.addAll(forwardHeaders))
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<ServiceApiResponse<AnalyticsSummaryResponse>>() {})
@@ -71,27 +92,37 @@ public class AdminDashboardService {
                         ? response.getData()
                         : AnalyticsSummaryResponse.empty())
                 .onErrorResume(error -> {
-                    log.warn("Failed to fetch analytics summary from {}: {}", url, error.getMessage());
+                    log.warn("Failed to fetch analytics summary from {}: {}", requestUrl, error.getMessage());
                     return Mono.just(AnalyticsSummaryResponse.empty());
                 });
     }
 
     private Mono<AnalyticsSummaryResponse> fetchDirectSummary(
             String url,
-            HttpHeaders forwardHeaders
+            HttpHeaders forwardHeaders,
+            String granularity
     ) {
+        String requestUrl = withGranularity(url, granularity);
         return monitoringWebClient.get()
-                .uri(url)
+                .uri(requestUrl)
                 .headers(headers -> headers.addAll(forwardHeaders))
                 .retrieve()
                 .bodyToMono(AnalyticsSummaryResponse.class)
                 .onErrorResume(error -> {
-                    log.warn("Failed to fetch analytics summary from {}: {}", url, error.getMessage());
+                    log.warn("Failed to fetch analytics summary from {}: {}", requestUrl, error.getMessage());
                     return Mono.just(AnalyticsSummaryResponse.empty());
                 });
     }
 
+    private String withGranularity(String url, String granularity) {
+        return UriComponentsBuilder.fromUriString(url)
+                .queryParam("granularity", granularity)
+                .build()
+                .toUriString();
+    }
+
     private AdminDashboardOverviewResponse buildOverview(
+            String granularity,
             AnalyticsSummaryResponse users,
             AnalyticsSummaryResponse wardrobe,
             AnalyticsSummaryResponse recommendations,
@@ -100,11 +131,12 @@ public class AdminDashboardService {
     ) {
         return AdminDashboardOverviewResponse.builder()
                 .generatedAt(LocalDateTime.now())
+                .granularity(granularity)
                 .users(toKpi(users))
                 .clothingItems(toKpi(wardrobe))
                 .detections(toKpi(detections))
                 .recommendations(toKpi(recommendations))
-                .dailyActivity(buildDailyActivity(users, detections, recommendations))
+                .dailyActivity(buildDailyActivity(granularity, users, detections, recommendations))
                 .monthlyGrowth(buildMonthlyGrowth(users, wardrobe))
                 .systemHealth(systemHealth)
                 .build();
@@ -119,6 +151,7 @@ public class AdminDashboardService {
     }
 
     private List<DailyActivityPoint> buildDailyActivity(
+            String granularity,
             AnalyticsSummaryResponse users,
             AnalyticsSummaryResponse detections,
             AnalyticsSummaryResponse recommendations
@@ -127,29 +160,63 @@ public class AdminDashboardService {
         Map<String, Long> detectionDaily = toDailyMap(detections);
         Map<String, Long> recommendationDaily = toDailyMap(recommendations);
 
-        List<String> dates = new ArrayList<>();
-        if (users.getDaily() != null) {
-            users.getDaily().forEach(point -> dates.add(point.getDate()));
-        }
+        List<String> keys = new ArrayList<>();
 
-        if (dates.isEmpty()) {
-            LocalDate today = LocalDate.now();
-            for (int i = 6; i >= 0; i--) {
-                dates.add(today.minusDays(i).toString());
+        if ("day".equals(granularity)) {
+            for (int hour = 0; hour < 24; hour++) {
+                keys.add(String.format("%02d", hour));
             }
+        } else {
+            Set<String> dates = new LinkedHashSet<>();
+            collectDates(dates, users);
+            collectDates(dates, detections);
+            collectDates(dates, recommendations);
+
+            if (dates.isEmpty()) {
+                LocalDate today = LocalDate.now();
+                if ("month".equals(granularity)) {
+                    LocalDate cursor = today.withDayOfMonth(1);
+                    while (!cursor.isAfter(today)) {
+                        dates.add(cursor.toString());
+                        cursor = cursor.plusDays(1);
+                    }
+                } else {
+                    for (int i = 6; i >= 0; i--) {
+                        dates.add(today.minusDays(i).toString());
+                    }
+                }
+            }
+            keys.addAll(dates);
         }
 
         List<DailyActivityPoint> points = new ArrayList<>();
-        for (String date : dates) {
+        for (String key : keys) {
             points.add(DailyActivityPoint.builder()
-                    .date(date)
-                    .dayLabel(formatDayLabel(date))
-                    .users(userDaily.getOrDefault(date, 0L))
-                    .detections(detectionDaily.getOrDefault(date, 0L))
-                    .recommendations(recommendationDaily.getOrDefault(date, 0L))
+                    .date(key)
+                    .dayLabel(formatActivityLabel(key, granularity))
+                    .users(userDaily.getOrDefault(key, 0L))
+                    .detections(detectionDaily.getOrDefault(key, 0L))
+                    .recommendations(recommendationDaily.getOrDefault(key, 0L))
                     .build());
         }
         return points;
+    }
+
+    private String formatActivityLabel(String key, String granularity) {
+        if ("day".equals(granularity)) {
+            return Integer.parseInt(key) + "h";
+        }
+        if ("month".equals(granularity)) {
+            return String.valueOf(LocalDate.parse(key).getDayOfMonth());
+        }
+        return formatDayLabel(key);
+    }
+
+    private void collectDates(Set<String> dates, AnalyticsSummaryResponse summary) {
+        if (summary.getDaily() == null) {
+            return;
+        }
+        summary.getDaily().forEach(point -> dates.add(point.getDate()));
     }
 
     private List<MonthlyGrowthPoint> buildMonthlyGrowth(
@@ -159,9 +226,12 @@ public class AdminDashboardService {
         Map<String, Long> userMonthly = toMonthlyMap(users);
         Map<String, Long> itemMonthly = toMonthlyMap(wardrobe);
 
-        List<String> months = new ArrayList<>();
+        Set<String> months = new LinkedHashSet<>();
         if (users.getMonthly() != null) {
             users.getMonthly().forEach(point -> months.add(point.getMonth()));
+        }
+        if (wardrobe.getMonthly() != null) {
+            wardrobe.getMonthly().forEach(point -> months.add(point.getMonth()));
         }
 
         if (months.isEmpty()) {
@@ -172,7 +242,9 @@ public class AdminDashboardService {
         }
 
         List<MonthlyGrowthPoint> points = new ArrayList<>();
-        for (String month : months) {
+        List<String> sortedMonths = new ArrayList<>(months);
+        sortedMonths.sort(Comparator.naturalOrder());
+        for (String month : sortedMonths) {
             points.add(MonthlyGrowthPoint.builder()
                     .month(month)
                     .monthLabel(formatMonthLabel(month))
@@ -221,6 +293,6 @@ public class AdminDashboardService {
 
     private String formatMonthLabel(String monthKey) {
         int month = Integer.parseInt(monthKey.substring(5, 7));
-        return "T" + month;
+        return "Thg " + month;
     }
 }
