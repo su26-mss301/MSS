@@ -73,6 +73,16 @@ public interface ClothingItemRepository extends JpaRepository<ClothingItem, UUID
     List<Object[]> countDailySince(@Param("from") LocalDateTime from);
 
     @Query(value = """
+            SELECT TO_CHAR(created_at, 'HH24') AS hour, COUNT(*)
+            FROM clothing_item
+            WHERE deleted_at IS NULL
+              AND created_at >= :from
+            GROUP BY hour
+            ORDER BY hour
+            """, nativeQuery = true)
+    List<Object[]> countHourlySince(@Param("from") LocalDateTime from);
+
+    @Query(value = """
             SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*)
             FROM clothing_item
             WHERE deleted_at IS NULL

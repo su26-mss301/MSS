@@ -172,36 +172,83 @@ def _subtract_months(dt: datetime, months: int) -> datetime:
     return dt.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-def _build_analytics_summary(db: Session) -> dict:
+def _build_analytics_summary(db: Session, granularity: str = "week") -> dict:
+    period = (granularity or "week").lower()
+    if period not in {"day", "week", "month"}:
+        period = "week"
+
     now = datetime.utcnow()
-    week_ago = now - timedelta(days=7)
-    two_weeks_ago = now - timedelta(days=14)
+
+    if period == "day":
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = today_start - timedelta(days=1)
+        current_start, current_end = today_start, now
+        previous_start, previous_end = yesterday_start, today_start
+    elif period == "month":
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        prev_month_start = _subtract_months(month_start, 1)
+        current_start, current_end = month_start, now
+        previous_start, previous_end = prev_month_start, month_start
+    else:
+        week_ago = now - timedelta(days=7)
+        two_weeks_ago = now - timedelta(days=14)
+        current_start, current_end = week_ago, now
+        previous_start, previous_end = two_weeks_ago, week_ago
 
     base_query = db.query(DetectionLog).filter(_active_logs_filter())
     total = base_query.count()
-    this_week = base_query.filter(
-        DetectionLog.created_at >= week_ago,
-        DetectionLog.created_at < now,
+    this_period = base_query.filter(
+        DetectionLog.created_at >= current_start,
+        DetectionLog.created_at < current_end,
     ).count()
-    last_week = base_query.filter(
-        DetectionLog.created_at >= two_weeks_ago,
-        DetectionLog.created_at < week_ago,
+    last_period = base_query.filter(
+        DetectionLog.created_at >= previous_start,
+        DetectionLog.created_at < previous_end,
     ).count()
 
-    daily_from = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-    daily_rows = db.query(
-        func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('day'),
-        func.count(DetectionLog.id).label('count'),
-    ).filter(
-        _active_logs_filter(),
-        DetectionLog.created_at >= daily_from,
-    ).group_by('day').order_by('day').all()
-    daily_map = {row.day: row.count for row in daily_rows}
-
-    daily = []
-    for offset in range(6, -1, -1):
-        day = (now - timedelta(days=offset)).strftime('%Y-%m-%d')
-        daily.append({"date": day, "count": daily_map.get(day, 0)})
+    if period == "day":
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        hourly_rows = db.query(
+            func.to_char(DetectionLog.created_at, 'HH24').label('hour'),
+            func.count(DetectionLog.id).label('count'),
+        ).filter(
+            _active_logs_filter(),
+            DetectionLog.created_at >= today_start,
+        ).group_by('hour').order_by('hour').all()
+        hourly_map = {str(row.hour).zfill(2): row.count for row in hourly_rows}
+        daily = [
+            {"date": f"{hour:02d}", "count": hourly_map.get(f"{hour:02d}", 0)}
+            for hour in range(24)
+        ]
+    elif period == "month":
+        daily_from = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        daily_offsets = range((now - daily_from).days, -1, -1)
+        daily_rows = db.query(
+            func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('day'),
+            func.count(DetectionLog.id).label('count'),
+        ).filter(
+            _active_logs_filter(),
+            DetectionLog.created_at >= daily_from,
+        ).group_by('day').order_by('day').all()
+        daily_map = {row.day: row.count for row in daily_rows}
+        daily = []
+        for offset in daily_offsets:
+            day = (now - timedelta(days=offset)).strftime('%Y-%m-%d')
+            daily.append({"date": day, "count": daily_map.get(day, 0)})
+    else:
+        daily_from = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        daily_rows = db.query(
+            func.to_char(DetectionLog.created_at, 'YYYY-MM-DD').label('day'),
+            func.count(DetectionLog.id).label('count'),
+        ).filter(
+            _active_logs_filter(),
+            DetectionLog.created_at >= daily_from,
+        ).group_by('day').order_by('day').all()
+        daily_map = {row.day: row.count for row in daily_rows}
+        daily = []
+        for offset in range(6, -1, -1):
+            day = (now - timedelta(days=offset)).strftime('%Y-%m-%d')
+            daily.append({"date": day, "count": daily_map.get(day, 0)})
 
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     monthly_from = _subtract_months(month_start, 5)
@@ -222,9 +269,9 @@ def _build_analytics_summary(db: Session) -> dict:
 
     return {
         "total": total,
-        "thisWeek": this_week,
-        "lastWeek": last_week,
-        "weekTrendPercent": _calculate_trend_percent(this_week, last_week),
+        "thisWeek": this_period,
+        "lastWeek": last_period,
+        "weekTrendPercent": _calculate_trend_percent(this_period, last_period),
         "daily": daily,
         "monthly": monthly,
     }
@@ -692,10 +739,11 @@ def toggle_detection_status(
 
 @app.get("/admin/analytics/summary")
 def get_admin_analytics_summary(
+    granularity: str = Query(default="week"),
     db: Session = Depends(get_db),
     _: CurrentUser = Depends(require_roles("ROLE_ADMIN")),
 ):
-    return _build_analytics_summary(db)
+    return _build_analytics_summary(db, granularity)
 
 
 @app.get("/analytics/stats")

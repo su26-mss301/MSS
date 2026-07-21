@@ -14,7 +14,10 @@ public class AuthContextConfig {
     @Bean
     public AuthContextFilter authContextFilter() {
         return new AuthContextFilter(List.of(
-                "/api/v1/recommendation/**",
+                // Public recommendation APIs (context-path stripped in filter)
+                "/generate/**",
+                "/user/**",
+                "/*",
                 "/actuator/health",
                 "/actuator/health/**",
                 "/actuator/info"

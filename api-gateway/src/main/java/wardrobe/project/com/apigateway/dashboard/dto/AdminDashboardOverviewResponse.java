@@ -18,6 +18,7 @@ import java.util.List;
 public class AdminDashboardOverviewResponse {
 
     private LocalDateTime generatedAt;
+    private String granularity;
     private KpiMetricResponse users;
     private KpiMetricResponse clothingItems;
     private KpiMetricResponse detections;

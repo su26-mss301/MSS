@@ -11,4 +11,6 @@ import java.util.UUID;
 @Repository
 public interface OutfitItemRepository extends JpaRepository<OutfitItem, UUID> {
     List<OutfitItem> findByOutfit(Outfit outfit);
+
+    long countByOutfit(Outfit outfit);
 }

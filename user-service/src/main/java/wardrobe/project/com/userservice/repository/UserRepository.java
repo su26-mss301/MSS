@@ -31,6 +31,15 @@ public interface UserRepository extends JpaRepository<User, String> {
     List<Object[]> countDailySince(@Param("from") Instant from);
 
     @Query(value = """
+            SELECT TO_CHAR(created_at AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24') AS hour, COUNT(*)
+            FROM users
+            WHERE created_at >= :from
+            GROUP BY hour
+            ORDER BY hour
+            """, nativeQuery = true)
+    List<Object[]> countHourlySince(@Param("from") Instant from);
+
+    @Query(value = """
             SELECT TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM') AS month, COUNT(*)
             FROM users
             WHERE created_at >= :from
