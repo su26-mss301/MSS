@@ -411,41 +411,50 @@ public class RecommendationServiceImpl {
     }
 
     @Transactional
-    public RecommendationResponseDTO generateContentBased(UUID userId) {
-        UserProfileExternalDTO profile = fetchUserProfile(userId);
-        if (profile == null || profile.getPreferredStyle() == null || profile.getPreferredStyle().trim().isEmpty()) {
-            log.warn("Người dùng {} chưa thiết lập phong cách cá nhân trong hồ sơ.", userId);
-
-            OutfitResponseDTO noPreferenceOutfit = OutfitResponseDTO.builder()
-                    .outfitName("Chưa thiết lập phong cách cá nhân")
-                    .description("Hệ thống chưa thể đưa ra gợi ý cá nhân hóa do bạn chưa chọn phong cách ưa thích. Vui lòng truy cập mục Cài đặt sở thích trên giao diện để thiết lập gu thời trang và màu sắc của mình trước.")
-                    .items(0)
-                    .clothingItems(new ArrayList<>())
-                    .build();
-
-            return RecommendationResponseDTO.builder()
-                    .userId(userId)
-                    .outfit(noPreferenceOutfit)
-                    .recommendationScore(0f)
-                    .eventType("Cá Nhân")
-                    .build();
-        }
-
+    public RecommendationResponseDTO generateContentBased(UUID userId, String chosenStyle) {
         List<ClothingItemExternalDTO> wardrobe = fetchUserWardrobe(userId);
         if (wardrobe.isEmpty()) {
             log.warn("Hệ thống phát hiện tủ đồ trống đối với người dùng: {}", userId);
             return createEmptyRecommendationResponse(userId, "Cá Nhân");
         }
 
-        List<ClothingItemExternalDTO> rankedItems = engine.rankByContentBased(wardrobe, profile);
+        List<String> styles = new ArrayList<>();
+        if (chosenStyle != null && !chosenStyle.trim().isEmpty()) {
+            styles.add(chosenStyle.toLowerCase().trim());
+        } else {
+            styles.add("thường ngày");
+        }
+
+        List<ClothingItemExternalDTO> filteredWardrobe = new ArrayList<>();
+        if (chosenStyle != null && !chosenStyle.trim().isEmpty()) {
+            String targetStyle = chosenStyle.toLowerCase().trim();
+            for (ClothingItemExternalDTO item : wardrobe) {
+                String itemName = item.getItemName() != null ? item.getItemName().toLowerCase() : "";
+                String catName = item.getCategory() != null ? item.getCategory().getCategoryName().toLowerCase() : "";
+
+                if (itemName.contains(targetStyle) || catName.contains(targetStyle)) {
+                    filteredWardrobe.add(item);
+                }
+            }
+        }
+
+        List<ClothingItemExternalDTO> targetWardrobe = filteredWardrobe.isEmpty() ? wardrobe : filteredWardrobe;
+
+        List<ClothingItemExternalDTO> rankedItems = engine.rankByPersonal(targetWardrobe, styles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
 
+        if (!outfitGenerator.isValidOutfit(finalOutfit)) {
+            log.warn("Set đồ cá nhân không đủ thành phần cơ bản sau khi lọc phong cách cho user: {}", userId);
+            return createNotEnoughItemsResponse(userId, "Cá Nhân");
+        }
+
         float realScore = calculateRealScore(finalOutfit);
-        String realName = generateDynamicName(finalOutfit, "Cá Nhân", profile.getPreferredStyle());
+
+        String finalOutfitName = "Phong Cách " + (chosenStyle != null ? chosenStyle : "Cá Nhân") + " (Cá Nhân)";
         String realDesc = generateDynamicDescription(finalOutfit);
 
-        Event event = getOrCreateEvent("Casual");
-        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, realScore, realName, realDesc);
+        Event event = getOrCreateEvent("Personal");
+        RecommendItem entity = saveRecommendation(userId, finalOutfit, event, realScore, finalOutfitName, realDesc);
         return mapToResponse(entity, wardrobe);
     }
 
@@ -460,8 +469,12 @@ public class RecommendationServiceImpl {
         List<ClothingItemExternalDTO> filteredItems = engine.filterByEvent(wardrobe, eventType);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(filteredItems);
 
-        float realScore = calculateRealScore(finalOutfit);
+        if (!outfitGenerator.isValidOutfit(finalOutfit)) {
+            log.warn("Set đồ event ({}) không đủ thành phần cơ bản cho user: {}", eventType, userId);
+            return createNotEnoughItemsResponse(userId, eventType);
+        }
 
+        float realScore = calculateRealScore(finalOutfit);
         UserProfileExternalDTO profile = fetchUserProfile(userId);
         String fallbackStyle = (profile.getPreferredStyle() != null) ? profile.getPreferredStyle() : eventType;
         String realName = generateDynamicName(finalOutfit, eventType, fallbackStyle);
@@ -503,6 +516,11 @@ public class RecommendationServiceImpl {
 
         List<ClothingItemExternalDTO> rankedItems = engine.rankByCollaborative(wardrobe, groupInfo.styles);
         List<ClothingItemExternalDTO> finalOutfit = outfitGenerator.generateBestOutfit(rankedItems);
+
+        if (!outfitGenerator.isValidOutfit(finalOutfit)) {
+            log.warn("Set đồ nhóm không đủ thành phần cơ bản cho user: {}", userId);
+            return createNotEnoughItemsResponse(userId, "Nhóm Bạn");
+        }
 
         float realScore = calculateRealScore(finalOutfit);
 
@@ -590,6 +608,22 @@ public class RecommendationServiceImpl {
                 .outfit(emptyOutfit)
                 .recommendationScore(0f)
                 .eventType(context)
+                .build();
+    }
+
+    private RecommendationResponseDTO createNotEnoughItemsResponse(UUID userId, String eventType) {
+        OutfitResponseDTO emptyOutfit = OutfitResponseDTO.builder()
+                .outfitName("Thiếu trang phục phù hợp")
+                .description("Tủ đồ của bạn không có đủ trang phục cơ bản (Cần ít nhất Áo + Quần/Váy, hoặc Đầm liền) phù hợp cho dịp này. Hãy chụp và thêm đồ vào tủ nhé!")
+                .items(0)
+                .clothingItems(new ArrayList<>())
+                .build();
+
+        return RecommendationResponseDTO.builder()
+                .userId(userId)
+                .outfit(emptyOutfit)
+                .recommendationScore(0f)
+                .eventType(eventType)
                 .build();
     }
 }

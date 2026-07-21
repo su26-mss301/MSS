@@ -13,7 +13,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping()
-@PreAuthorize("hasAuthority('ROLE_USER')")
 @RequiredArgsConstructor
 public class RecommendationController {
 
@@ -38,11 +37,13 @@ public class RecommendationController {
     }
 
     @GetMapping("/generate/personal")
-    public ResponseEntity<ApiResponse<RecommendationResponseDTO>> getPersonalRecommendation(@RequestParam UUID userId) {
+    public ResponseEntity<ApiResponse<RecommendationResponseDTO>> getPersonalRecommendation(
+            @RequestParam UUID userId,
+            @RequestParam(required = false) String style) {
         return ResponseEntity.ok(ApiResponse.<RecommendationResponseDTO>builder()
                 .success(true)
                 .message("Personal recommendation generated successfully")
-                .data(recommendationService.generateContentBased(userId))
+                .data(recommendationService.generateContentBased(userId, style))
                 .build());
     }
 
